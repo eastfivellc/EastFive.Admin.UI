@@ -1,0 +1,96 @@
+﻿@page "/notifications"
+@inject HttpClient Http
+@using SharpDom.Tags
+@using System.IO
+
+<h1>Notifications</h1>
+
+<p>Setup system notifications</p>
+
+@if (resources == null)
+{
+    if (String.IsNullOrWhiteSpace(failureMessage))
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <p><code>@failureMessage</code></p>
+    }
+}
+else
+{
+    <div class="table">
+        <div class="thead">
+            <span>Last Day</span>
+            <span>Title</span>
+            <span>Body</span>
+            <span>Link</span>
+        </div>
+        <div class="tbody">
+            @foreach (var resource in resources)
+            {
+                var row = resource.Properties.Aggregate(
+                    new TagDiv(),
+                    (rowDiv, property) =>
+                    {
+                        return property.Render(rowDiv);
+                    });
+                var content = "";
+                using (var renderer = new StringWriter())
+                {
+                    row.Render(renderer, true);
+                    content = renderer.ToString();
+                }
+                @((MarkupString)content)
+            }
+        </div>
+    </div>
+    <button class="btn btn-primary" @onclick="AddResource">Add Resource</button>
+}
+
+@code {
+    private EntityType[] resources;
+    private string failureMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // forecasts = await Http.GetJsonAsync<WeatherForecast[]>("sample-data/weather.json");
+        bool success = await Comms.GetNotifications(
+            notifications =>
+            {
+                this.resources = new EntityType[]
+                {
+                    new EntityType
+                    {
+                        Name = "Foo",
+                        Properties = new IDataType[]
+                        {
+                            new StringDataType()
+                            {
+                                entityId = "asdf",
+                                entityName = "ASDF",
+                                Name = "XCF"
+                            }
+                        }
+                    }
+                };
+                return true;
+            },
+            (message) =>
+            {
+                this.failureMessage = message;
+                return false;
+            });
+    }
+
+    private void AddResource()
+    {
+        //this.resources = this.notifications
+        //    .Append(
+        //        new Resources.Notification()
+        //        {
+        //        })
+        //    .ToArray();
+    }
+}
