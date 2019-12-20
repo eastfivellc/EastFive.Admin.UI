@@ -1,0 +1,96 @@
+﻿@using Radzen;
+@using Radzen.Blazor
+@using EastFive.Api.Resources;
+@using EastFive.Extensions;
+@using EastFive.Async;
+@using EastFive.Collections.Generic;
+@using EastFive.Linq;
+@using EastFive.Linq.Async;
+@using Microsoft.AspNetCore.Components;
+@using Newtonsoft.Json.Linq;
+@using EastFive.Admin.UI.Components;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+    <RadzenFieldset AllowCollapse="true" Text="@method.Name">
+        @foreach (var parameter in method.Parameters)
+        {
+            <div class="row">
+            <RadzenFieldset Text="@parameter.Name" style="width:100%;">
+                <div class="col-md-12">
+                    <ParameterInput typeName="@parameter.Type" OnValueChanged="(args) => UpdateObjectProperty(parameter.Name, args)" />
+                    <div style="float:right">
+                        @if (parameter.Required)
+                        {
+                            <RadzenLabel Text="Required" />
+                            <RadzenCheckBox Disabled="true" Value="true" TValue="bool" OnValueChanged="(args) => Change(args, parameter.Name, method)" />
+                        }
+                        else
+                        {
+                            <RadzenLabel Text="Included" />
+                            <RadzenCheckBox Value="false" TValue="bool" OnValueChanged="(args) => Change(args, parameter.Name, method)" />
+                        }
+                    </div>
+                </div>
+            </RadzenFieldset>
+            </div>
+        }
+        @{
+        var otherProperties = route.Properties
+            .Where(prop => !method.Parameters.Any(parameter => parameter.Name == prop.Name));
+        }
+        @if (otherProperties.Any())
+        {
+        <RadzenPanel AllowCollapse="true" Style="width:100%;">
+            <HeaderTemplate>
+                <span style="float:left;">
+                    <RadzenIcon Icon="account_box" /><b style="font-size:15px">OTHER PROPERTIES</b>
+                </span>
+            </HeaderTemplate>
+            <ChildContent>
+                @foreach (var parameter in otherProperties)
+                {
+                <div class="row">
+                    <RadzenFieldset Text="@parameter.Name" style="width:100%">
+                        <div class="col-md-12">
+                            <ParameterInput typeName="@parameter.Type" OnValueChanged="(args) => UpdateObjectProperty(parameter.Name, args)" />
+                            <div style="float:right">
+                                <RadzenLabel Text="Included" />
+                                <RadzenCheckBox Value="false" TValue="bool" OnValueChanged="(args) => Change(args, parameter.Name, method)" />
+                            </div>
+                        </div>
+                    </RadzenFieldset>
+                </div>
+                }
+            </ChildContent>
+        </RadzenPanel>
+        }
+        <button class="btn btn-primary" @onclick="SendResource">Add Resource</button>
+    </RadzenFieldset>
+
+@code
+{
+    [Parameter]
+    public Route route { get; set; }
+
+    [Parameter]
+    public Method method { get; set; }
+
+    private IDictionary<string, object> objectToCreate = new Dictionary<string, object>();
+
+    private void UpdateStringProperty(string propertyName, string value)
+    {
+        objectToCreate.AddOrReplace(propertyName, value);
+    }
+
+    private void UpdateObjectProperty(string propertyName, object value)
+    {
+        objectToCreate.AddOrReplace(propertyName, value);
+    }
+
+    private Task SendResource()
+    {
+        var x = Newtonsoft.Json.JsonConvert.SerializeObject(objectToCreate);
+        Console.WriteLine(x);
+        return Comms.PostAsync(route, method, x, localStorage);
+    }
+}

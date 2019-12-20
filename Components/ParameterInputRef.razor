@@ -1,0 +1,120 @@
+﻿@using Radzen;
+@using Radzen.Blazor
+@using EastFive.Api.Resources;
+@using EastFive.Extensions;
+@using EastFive.Async;
+@using EastFive.Collections.Generic;
+@using EastFive.Linq;
+@using EastFive.Linq.Async;
+@using Microsoft.AspNetCore.Components;
+@using Newtonsoft.Json.Linq;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+<RadzenDropDown AllowClear="false"
+                TValue="string"
+                Value="inputStatus"
+                Data="@(new string[] { "Select", "Specify", "Generate" })" 
+                Change="SetInputStatus" />
+@if (IsSelect())
+{
+    @if(refOptions != null)
+    { 
+        <RadzenDropDownDataGrid TValue="string"
+                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                AllowFiltering="true"
+                                AllowClear="true"
+                                Placeholder="@correctedTypeName" Data="@refOptions" TextProperty="Key" ValueProperty="Value"
+                                Change="@((args) => ChangeRef(args))" Style="margin-bottom: 20px">
+            <Template Context="nameIdKvpObj">
+                @{ var nameIdKvp = (KeyValuePair<string, string>)nameIdKvpObj; }
+                @nameIdKvp.Key
+            </Template>
+        </RadzenDropDownDataGrid>
+    } else
+    {
+        <p>Fetching...</p>
+    }
+}
+@if (IsSpecified())
+{
+    <RadzenTextBox Value="@value" Placeholder="@Guid.Empty.ToString()" Change="@(args => Change(args))" />
+}
+
+@if (IsGenerate())
+{
+    <RadzenTextBox Disabled="true" Value="@value" Style="margin-bottom: 20px" />
+}
+
+@code
+{
+    [Parameter]
+    public string typeName { get; set; }
+
+    string correctedTypeName;
+
+    object [] refOptions;
+
+    string value { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnValueChanged { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        correctedTypeName = typeName.Trim(new char[] { '?', '-', '>' });
+        await base.OnParametersSetAsync();
+        refOptions = await RouteManager.LoadTableOptionsAsync(correctedTypeName, localStorage);
+    }
+
+    private string inputStatus = "Specify";
+
+    private bool IsSpecified()
+    {
+        var specified = inputStatus == "Specify";
+        return specified;
+    }
+
+    private bool IsSelect()
+    {
+        var specified = inputStatus == "Select";
+        return specified;
+    }
+
+    private bool IsGenerate()
+    {
+        if (IsSelect())
+            return false;
+        if (IsSpecified())
+            return false;
+        return true;
+    }
+
+    async Task SetInputStatus(object newStatusObj)
+    {
+        var newStatus = (string)newStatusObj;
+        this.inputStatus = newStatus;
+        if (IsGenerate())
+        {
+            var generatedValue = Guid.NewGuid();
+            this.value = generatedValue.ToString();
+            await OnValueChanged.InvokeAsync(generatedValue);
+        }
+    }
+
+    private async Task Change(string value)
+    {
+        Console.WriteLine($"Ref Changed to `{value}`");
+        if(Guid.TryParse(value, out Guid guidValue))
+            await OnValueChanged.InvokeAsync(guidValue);
+    }
+
+    private async Task ChangeRef(object value)
+    {
+        Console.WriteLine($"Ref Changed to obj `{value}`");
+        var strValue = (string)value;
+        if(Guid.TryParse(strValue, out Guid guidValue))
+            await OnValueChanged.InvokeAsync(guidValue);
+
+    }
+
+}

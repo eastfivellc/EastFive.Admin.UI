@@ -1,0 +1,69 @@
+﻿@using Radzen;
+@using Radzen.Blazor
+@using EastFive.Api.Resources;
+@using EastFive.Extensions;
+@using EastFive.Async;
+@using EastFive.Collections.Generic;
+@using EastFive.Linq;
+@using EastFive.Linq.Async;
+@using Microsoft.AspNetCore.Components;
+@using Newtonsoft.Json.Linq;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+@if (typeName == "String")
+{
+    <RadzenTextBox Placeholder="Text..." Change="@(args => ChangeAsync(args))" Style="margin-bottom: 20px" />
+}
+@if (typeName == "DateTime?")
+{
+    <RadzenDatePicker style="width: 80%;" Name="@typeName" ValueChanged="@((DateTime args) => ChangeDate(args))" />
+}
+@if (typeName == "Uri")
+{
+    <RadzenTextBox Placeholder="http://www.example.com..." Change="@(args => ChangeAsync(args))" Style="margin-bottom: 20px" />
+}
+@if (typeName == "HttpContent")
+{
+    <RadzenFileInput Style="width:400px;" TValue="string" Change="@(args => ChangeAsync(args))" />
+}
+@if (typeName == "Boolean")
+{
+    <RadzenCheckBox TValue="bool" Change="@(args => ChangeBoolAsync(args))" />
+}
+@if (typeName.StartsWith("->"))
+{
+    <ParameterInputRef typeName="@typeName" OnValueChanged="ChangeGuid" />
+}
+
+@code
+{
+    [Parameter]
+    public string typeName { get; set; }
+
+    [Parameter]
+    public EventCallback<object> OnValueChanged { get; set; }
+
+    private Task ChangeAsync(string value)
+    {
+        Console.WriteLine($"Saving string `{value}`");
+        return OnValueChanged.InvokeAsync(value);
+    }
+
+    private Task ChangeBoolAsync(bool value)
+    {
+        Console.WriteLine($"Saving bool `{value}`");
+        return OnValueChanged.InvokeAsync(value);
+    }
+
+    private Task ChangeDate(DateTime value)
+    {
+        Console.WriteLine($"Saving Date `{value}`");
+        return OnValueChanged.InvokeAsync(value);
+    }
+
+    private Task ChangeGuid(Guid value)
+    {
+        Console.WriteLine($"Saving Guid `{value}`");
+        return OnValueChanged.InvokeAsync(value);
+    }
+}

@@ -1,0 +1,36 @@
+﻿@using Radzen;
+@using Radzen.Blazor
+@using EastFive.Api.Resources;
+@using EastFive.Extensions;
+@using EastFive.Async;
+@using EastFive.Collections.Generic;
+@using EastFive.Linq;
+@using EastFive.Linq.Async;
+@using Microsoft.AspNetCore.Components;
+@using Newtonsoft.Json.Linq;
+@using EastFive.Admin.UI.Components;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+@foreach (var method in @route.Methods.Where(method => method.HttpMethod.ToLower() == "post"))
+{
+    <CreateMethod method="@method" route="@route" />
+}
+
+@code
+{
+    Route _route;
+    [Parameter]
+    public Route route
+    {
+        get { return _route; }
+        set
+        {
+            _route = value;
+        }
+    }
+    
+    protected override Task OnParametersSetAsync()
+    {
+        return base.OnParametersSetAsync();
+    }
+}

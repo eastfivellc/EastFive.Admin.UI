@@ -3,99 +3,301 @@
 @inject HttpClient Http
 @using SharpDom.Tags
 @using System.IO
+@using EastFive.Api.Resources;
+@using System.Threading;
+@using EastFive;
+@using EastFive.Extensions;
+@using EastFive.Collections.Generic;
+@using EastFive.Admin.UI.Components;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@using Radzen.Blazor
+@using Radzen;
+@using Newtonsoft.Json.Linq
+@*@inject NotificationService notificationService*@
 
 <h1>@Name</h1>
 
-<p>Setup system notifications</p>
-
-@if (resources == null)
+@if (route == null)
 {
-    if (String.IsNullOrWhiteSpace(failureMessage))
-    {
-        <p><em>Loading...</em></p>
-    }
-    else
-    {
-        <p><code>@failureMessage</code></p>
-    }
+    <p><em>Loading...</em></p>
 }
 else
 {
-    <div class="table">
-        <div class="thead">
-            <span>Last Day</span>
-            <span>Title</span>
-            <span>Body</span>
-            <span>Link</span>
-        </div>
-        <div class="tbody">
-            @foreach (var resource in resources)
-            {
-                var row = resource.Properties.Aggregate(
-                    new TagDiv(),
-                    (rowDiv, property) =>
+    @if (!String.IsNullOrWhiteSpace(failureMessage))
+    {
+        <p><code>@failureMessage</code></p>
+    }
+    <RadzenTabs>
+        <Tabs>
+            <RadzenTabsItem Text="Create">
+                <EastFive.Admin.UI.Components.AddResource route="route" />
+            </RadzenTabsItem>
+            <RadzenTabsItem Text="Read/GET">
+                <div class="method_selector">
+                    <select @bind="selectedMethod">
+                        @foreach (var getMethod in getMethods)
+                        {
+                        <option id="@getMethod.Name" value="@getMethod.Name">@getMethod.Name</option>
+                        }
+                    </select>
+                    @if (matchingMethod != null)
                     {
-                        return property.Render(rowDiv);
-                    });
-                var content = "";
-                using (var renderer = new StringWriter())
+                        @foreach (var parameter in matchingMethod.Parameters)
+                        {
+                            var paramName = parameter.Name;
+                            <span>
+                                <label for="@parameter.Name">@parameter.Name</label>
+                                <ParameterInput typeName="@parameter.Type" OnValueChanged="@((object newValue) => UpdateParam(paramName, newValue.ToString()))" />
+                                @*<input id="@parameter.Name" type="text"
+                                       @onchange="@((Microsoft.AspNetCore.Components.ChangeEventArgs args) => { UpdateParam(paramName, (string)args.Value);})" />*@
+                            </span>
+                        }
+                        <span>
+                            <button class="btn btn-primary" @onclick="FetchResources">Fetch Resources</button>
+                        </span>
+                    }
+                </div>
+                <div class="rTable">
+
+                    <div class="rTableHeading">
+                        @foreach (var parameter in route.Properties)
+                        {
+                            <span class="rTableHead">@parameter.Name</span>
+                        }
+                    </div>
+
+                    @if (resources != null)
+                    {
+                        <div class="rTableBody">
+                            @foreach (var resource in resources)
+                            {
+                                var row = resource.Properties.Aggregate(
+                                    new TagDiv() { Class = "rTableRow" },
+                                    (rowDiv, property) =>
+                                    {
+                                        return property.Render(rowDiv);
+                                    });
+                                var content = "";
+                                using (var renderer = new StringWriter())
+                                {
+                                    row.Render(renderer, true);
+                                    content = renderer.ToString();
+                                }
+                                @((MarkupString)content)
+                            }
+                        </div>
+                    }
+                </div>
+            </RadzenTabsItem>
+            <RadzenTabsItem Text="Storage">
+                <span>
+                    <button class="btn btn-primary" @onclick="FetchTableRows">Fetch Rows</button>
+                </span>
+                @if (loading)
                 {
-                    row.Render(renderer, true);
-                    content = renderer.ToString();
+                <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
                 }
-                @((MarkupString)content)
-            }
-        </div>
-    </div>
-    <button class="btn btn-primary" @onclick="AddResource">Add Resource</button>
+                <RadzenGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true" Data="@tableRows" TItem="Newtonsoft.Json.Linq.JObject">
+                    <Columns>
+                        @foreach (var property in route.Properties)
+                        {
+                            <RadzenGridColumn TItem="JObject" Property="@property.Name" Title="@property.Name">
+                                <Template Context="prop">
+                                    @if (prop[property.Name] is JValue)
+                                    {
+                                        var strValue = (prop[property.Name] as JValue).Value<string>();
+                                        @strValue
+                                    }
+                                    else if (prop[property.Name] is JArray)
+                                    {
+                                        var arrValue = (prop[property.Name] as JArray);
+                                        <ul>
+                                            @foreach (var arrV in arrValue)
+                                            {
+                                                <li>@arrV</li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        @prop[property.Name]
+                                    }
+                                </Template>
+                            </RadzenGridColumn>
+                        }
+                    </Columns>
+                </RadzenGrid>
+            </RadzenTabsItem>
+        </Tabs>
+    </RadzenTabs>
 }
 
 @code {
 
+    private string name_;
     [Parameter]
-    public string Name { get; set; }
+    public string Name
+    {
+        get
+        {
+            return name_;
+        }
+        set
+        {
+            this.resources = null;
+            this.tableRows = null;
+            name_ = value;
+            StateHasChanged();
+        }
+    }
+
+    Route _route;
+    [Parameter]
+    public Route route
+    {
+        get { return _route; }
+        set
+        {
+            _route = value;
+            StateHasChanged();
+        }
+    }
 
     private EntityType[] resources;
+
+    private Method[] getMethods;
+
     private string failureMessage;
+
+    private Newtonsoft.Json.Linq.JObject[] tableRows = new Newtonsoft.Json.Linq.JObject[] { };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var routeString = await localStorage.GetItemAsync<string>(this.Name.ToLower());
+        this.route = Newtonsoft.Json.JsonConvert.DeserializeObject<Route>(routeString);
+
+        this.getMethods = route.Methods
+            .Where(method => String.Compare("GET", method.HttpMethod, true) == 0)
+            .ToArray();
+
+        if (this.getMethods.Any())
+            selectedMethod = this.getMethods.First().Name;
+
+        await base.OnParametersSetAsync();
+        StateHasChanged();
+    }
+
+    private Dictionary<string, string> paramValues = new Dictionary<string, string>();
+
+    private void UpdateParam(string paramName, string paramValue)
+    {
+        paramValues.AddOrReplace(paramName, paramValue);
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        // forecasts = await Http.GetJsonAsync<WeatherForecast[]>("sample-data/weather.json");
-        bool success = await Comms.GetManifestAsync(
-            notifications =>
+        var routeString = await localStorage.GetItemAsync<string>(this.Name.ToLower());
+        this.route = Newtonsoft.Json.JsonConvert.DeserializeObject<Route>(routeString);
+
+        this.getMethods = route.Methods
+            .Where(method => String.Compare("GET", method.HttpMethod, true) == 0)
+            .ToArray();
+
+        this.resources = null;
+    }
+
+    private string selectedMethod_;
+    private string selectedMethod
+    {
+        get
+        {
+            return selectedMethod_;
+        }
+        set
+        {
+            Console.WriteLine($"Setting...{value}");
+            selectedMethod_ = value;
+            if (value.IsNullOrWhiteSpace())
+                return;
+            Console.WriteLine($"Value has black space.");
+            var matchingMethods = route.Methods
+                .Where(method => String.Compare(value, method.Name, false) == 0);
+            if (!matchingMethods.Any())
+                return;
+            Console.WriteLine($"Matched method.");
+            this.matchingMethod = matchingMethods.First();
+            Console.WriteLine($"Exiting.");
+        }
+    }
+    private Method matchingMethod = default;
+
+    private void UpdateTableHeadings()
+    {
+    }
+
+    private Task fetcher = default;
+
+    //[Inject] 
+    //public NavigationManager MyNavigationManager {get; set;}
+
+    private Task FetchResources()
+    {
+        Console.WriteLine("Fetching...");
+        return Comms.GetAsync(this.route, this.matchingMethod, this.paramValues,
+                localStorage,
+            callback =>
             {
-                this.resources = new EntityType[]
-                {
-                    new EntityType
-                    {
-                        Name = "Foo",
-                        Properties = new IDataType[]
-                    {
-                            new StringDataType()
-                            {
-                                entityId = "asdf",
-                                entityName = "ASDF",
-                                Name = "XCF"
-                            }
-                        }
-                    }
-                };
+                this.resources = callback;
+                Console.WriteLine("Fetched");
                 return true;
             },
-            (message) =>
+            why =>
             {
-                this.failureMessage = message;
+                this.failureMessage = why;
+                Console.WriteLine("Fetched");
                 return false;
             });
     }
 
-    private void AddResource()
+    private bool loading;
+
+    private async Task FetchTableRows()
     {
-        //this.resources = this.notifications
-        //    .Append(
-        //        new Resources.Notification()
-        //        {
-        //        })
-        //    .ToArray();
+        Console.WriteLine("Fetching Table...");
+        loading = true;
+        await await TableData.TableAsync(this.route,
+                localStorage,
+            callback =>
+            {
+                this.tableRows = callback;
+                Console.WriteLine("Fetched");
+                loading = false;
+                return true.AsTask();
+            },
+            async why =>
+            {
+                //var msg = new NotificationMessage()
+                //{
+                //    Severity = NotificationSeverity.Error, 
+                //    Summary = "Error", 
+                //    Detail = why, 
+                //    Duration = 4000
+                //};
+                //notificationService.Notify(msg);
+                //await InvokeAsync(() => { StateHasChanged(); });
+                this.failureMessage = why;
+                loading = false;
+                Console.WriteLine("Fetched");
+                return false;
+            });
     }
+
+    //async void ShowNotification(NotificationMessage message)
+    //{
+    //    notificationService.Notify(message);
+
+    //    events.Add(DateTime.Now, $"{message.Severity} notification");
+    //    await InvokeAsync(() => { StateHasChanged(); });
+    //}
+
 }

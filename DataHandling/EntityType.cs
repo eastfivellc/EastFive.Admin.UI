@@ -7,8 +7,6 @@ namespace EastFive.Admin.UI
 {
     public class EntityType
     {
-        public string Name { get; set; }
-
         public IDataType [] Properties { get; set; }
     }
 }

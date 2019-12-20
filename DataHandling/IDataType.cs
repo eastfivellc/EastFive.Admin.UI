@@ -10,8 +10,6 @@ namespace EastFive.Admin.UI
 {
     public interface IDataType
     {
-        string Name { get; }
-
         TagDiv Render(TagDiv rowEntry);
 
         string Edit();

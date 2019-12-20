@@ -1,4 +1,5 @@
 ﻿@inherits LayoutComponentBase
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
 
 <div class="sidebar">
     <NavMenu />
@@ -6,6 +7,8 @@
 
 <div class="main">
     <div class="top-row px-4">
+        <input type="text" value="@token" @onchange="UpdateToken" />
+        <input type="text" value="@serverUrl" @onchange="UpdateServerUrl" />
         <a href="http://blazor.net" target="_blank" class="ml-md-auto">About</a>
     </div>
 
@@ -13,3 +16,41 @@
         @Body
     </div>
 </div>
+
+@code {
+    private string token = "";
+    private string serverUrl = "";
+
+    [Inject]
+    public NavigationManager NavigationManager {get; set;}
+
+    protected override async Task OnParametersSetAsync()
+    {
+        token = await localStorage.GetItemAsync<string>("authorization_token");
+        Console.WriteLine($"Token = {token}");
+        var storedServerUrl = await localStorage.GetItemAsync<string>("serverUrl");
+        Console.WriteLine($"Stored Server URL = {storedServerUrl}");
+        if(storedServerUrl.HasBlackSpace())
+        {
+            this.serverUrl = storedServerUrl;
+            return;
+        }
+        storedServerUrl = NavigationManager.BaseUri;
+        Console.WriteLine($"Updating Stored Server URL = {storedServerUrl}");
+        await this.localStorage.SetItemAsync("serverUrl", storedServerUrl);
+    }
+
+    private async Task UpdateToken(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+    {
+        Console.WriteLine($"Token = {token}");
+        Console.WriteLine($"Token Could be = {args.Value}");
+        await localStorage.SetItemAsync("authorization_token", args.Value);
+    }
+
+    private async Task UpdateServerUrl(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+    {
+        Console.WriteLine($"Server URL = {serverUrl}");
+        Console.WriteLine($"Server URL Could be = {args.Value}");
+        await localStorage.SetItemAsync("serverUrl", args.Value);
+    }
+}
