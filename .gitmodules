@@ -1,0 +1,3 @@
+[submodule "EastFive.Core"]
+	path = EastFive.Core
+	url = git@github.com:eastfivellc/EastFive.Core.git
