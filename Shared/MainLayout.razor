@@ -9,6 +9,7 @@
     <div class="top-row px-4">
         <input type="text" value="@token" @onchange="UpdateToken" />
         <input type="text" value="@serverUrl" @onchange="UpdateServerUrl" />
+        <input type="text" value="@tableToken" @onchange="UpdateTableToken" />
         <a href="http://blazor.net" target="_blank" class="ml-md-auto">About</a>
     </div>
 
@@ -20,14 +21,17 @@
 @code {
     private string token = "";
     private string serverUrl = "";
+    private string tableToken = "";
 
     [Inject]
     public NavigationManager NavigationManager {get; set;}
 
     protected override async Task OnParametersSetAsync()
     {
-        token = await localStorage.GetItemAsync<string>("authorization_token");
-        Console.WriteLine($"Token = {token}");
+        token = await localStorage.GetItemAsync<string>(Comms.authorizationTokenStorageKey);
+        
+        tableToken = await localStorage.GetItemAsync<string>(TableData.storageTableInformationTokenName);
+
         var storedServerUrl = await localStorage.GetItemAsync<string>("serverUrl");
         Console.WriteLine($"Stored Server URL = {storedServerUrl}");
         if(storedServerUrl.HasBlackSpace())
@@ -44,7 +48,7 @@
     {
         Console.WriteLine($"Token = {token}");
         Console.WriteLine($"Token Could be = {args.Value}");
-        await localStorage.SetItemAsync("authorization_token", args.Value);
+        await localStorage.SetItemAsync(Comms.authorizationTokenStorageKey, args.Value);
     }
 
     private async Task UpdateServerUrl(Microsoft.AspNetCore.Components.ChangeEventArgs args)
@@ -52,5 +56,11 @@
         Console.WriteLine($"Server URL = {serverUrl}");
         Console.WriteLine($"Server URL Could be = {args.Value}");
         await localStorage.SetItemAsync("serverUrl", args.Value);
+    }
+
+    private async Task UpdateTableToken(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+    {
+        Console.WriteLine($"Table Token Wil be = {args.Value}");
+        await localStorage.SetItemAsync(TableData.storageTableInformationTokenName, args.Value);
     }
 }

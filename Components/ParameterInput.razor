@@ -16,7 +16,7 @@
 }
 @if (typeName == "DateTime?")
 {
-    <RadzenDatePicker style="width: 80%;" Name="@typeName" ValueChanged="@((DateTime args) => ChangeDate(args))" />
+    <RadzenDatePicker style="width: 80%;" ValueChanged="@((DateTime args) => ChangeDate(args))" />
 }
 @if (typeName == "Uri")
 {

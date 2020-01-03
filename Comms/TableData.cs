@@ -10,6 +10,8 @@ namespace EastFive.Admin.UI
 {
     public static class TableData
     {
+        public const string storageTableInformationTokenName = "storageTableInformationToken";
+
         public static Task<TResult> TableAsync<TResult>(Route route,
                 Blazored.LocalStorage.ILocalStorageService storage,
             Func<Newtonsoft.Json.Linq.JObject[], TResult> onFound,
@@ -30,7 +32,8 @@ namespace EastFive.Admin.UI
                 Console.WriteLine(url.AbsoluteUri);
                 using (var request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
-                    request.Headers.Add("StorageTableInformation", "7701872a-8092-4f38-80bc-e89855a712ce");
+                    var tableInfoToken = await storage.GetItemAsync<string>(storageTableInformationTokenName);
+                    request.Headers.Add("StorageTableInformation", tableInfoToken);
                     request.Headers.Add("X-StorageTableInformation-List", "true");
                     try
                     {

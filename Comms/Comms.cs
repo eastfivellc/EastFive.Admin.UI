@@ -15,9 +15,7 @@ namespace EastFive.Admin.UI
 {
     public static class Comms
     {
-        //public static string token = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNyc2Etc2hhMjU2IiwidHlwIjoiSldUIn0.eyJzZXNzaW9uIjoiNmE4M2U5ODAtZjhhYi00Yzk0LWIzNjUtNTYwMTM1YzQ2ZGQ4IiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXM_aWQ9NDVjZDAzZGQtZjE4OC00NTg4LWI5YzYtYzcxOTNlMjIwZjZiIjoiYWFkNGQwMmUtZDkxMS00YTA0LWEyM2UtNmI0YmM3ODZmMTczIiwibmJmIjoxNTcwNTM5MDY3LCJleHAiOjE1Nzg0ODc4NjcsImlzcyI6Imh0dHBzOi8vYWZmaXJtaGVhbHRocGRtcy1hdXRoZW50aWNhdGlvbi1wcmQuYXp1cmV3ZWJzaXRlcy5uZXQvIiwiYXVkIjoiaHR0cHM6Ly9hZmZpcm1oZWFsdGhwZG1zZGVtbzIuYXp1cmV3ZWJzaXRlcy5uZXQvIn0.B3RP8JC28UeDr931FwI09Ge1x2z8CcO7Im6Cn0nBS-wBi2ZlJuI10KyV9O8CVN8lhsxkRRXnorg6iDcqq320lJU4iufELXGUIjA1DVK3pR04JannW5NLwfeURLzvX7o0FLIaqvTwGlCzEVD9OxAHFnKUWE8I2Ohs-f1DBs8WXuSRIEJ1Wctni6GQPX_NIx_dryKIroYCOFW9mqheqst-R_zXvXchwlYgvEVWKz7L-r2p2jgok9i0GQ36frwDJ0mS4IvnYhMTlAc6q4WOznLCAvx047kPlk30o_SSO8B0s8hjYx1Q26TfaPkAOG1wiihDMX5hNJwKs55b7s8teOgkBg";
-
-        //public const string ServerUrl = "http://localhost:57601";
+        public const string authorizationTokenStorageKey = "authorization_token";
 
         public static async Task<TResult> GetManifestAsync<TResult>(
                 Blazored.LocalStorage.ILocalStorageService storage,
@@ -86,7 +84,7 @@ namespace EastFive.Admin.UI
                 Console.WriteLine(url.AbsoluteUri);
                 using (var request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
-                    var token = await storage.GetItemAsync<string>("authorization_token");
+                    var token = await storage.GetItemAsync<string>(Comms.authorizationTokenStorageKey);
                     request.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue(token);
                     try
@@ -181,7 +179,7 @@ namespace EastFive.Admin.UI
                 Console.WriteLine($"POSTING to {url.AbsoluteUri}");
                 using (var request = new HttpRequestMessage(HttpMethod.Post, url))
                 {
-                    var token = await storage.GetItemAsync<string>("authorization_token");
+                    var token = await storage.GetItemAsync<string>(Comms.authorizationTokenStorageKey);
                     request.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue(token);
                     using (request.Content = new StringContent(content))

@@ -18,7 +18,7 @@
 @if (IsSelect())
 {
     @if(refOptions != null)
-    { 
+    {
         <RadzenDropDownDataGrid TValue="string"
                                 FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                 AllowFiltering="true"
@@ -27,7 +27,14 @@
                                 Change="@((args) => ChangeRef(args))" Style="margin-bottom: 20px">
             <Template Context="nameIdKvpObj">
                 @{ var nameIdKvp = (KeyValuePair<string, string>)nameIdKvpObj; }
-                @nameIdKvp.Key
+                @if (nameType == "Uri")
+                {
+                    <p>URL:</p><RadzenImage Path="@nameIdKvp.Key" />
+                }
+                else
+                {
+                    @nameIdKvp.Key
+                }
             </Template>
         </RadzenDropDownDataGrid>
     } else
@@ -56,6 +63,8 @@
 
     string value { get; set; }
 
+    string nameType;
+
     [Parameter]
     public EventCallback<Guid> OnValueChanged { get; set; }
 
@@ -63,7 +72,9 @@
     {
         correctedTypeName = typeName.Trim(new char[] { '?', '-', '>' });
         await base.OnParametersSetAsync();
-        refOptions = await RouteManager.LoadTableOptionsAsync(correctedTypeName, localStorage);
+        var routeOptions = await RouteManager.LoadTableOptionsAsync(correctedTypeName, localStorage);
+        refOptions = routeOptions.options;
+        this.nameType = routeOptions.nameType;
     }
 
     private string inputStatus = "Specify";

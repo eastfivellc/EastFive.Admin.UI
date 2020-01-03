@@ -12,13 +12,19 @@ namespace EastFive.Admin.UI
 {
     public class RouteManager
     {
-        public static IDictionary<string, object[]> RefOptions = new Dictionary<string, object[]>();
-        private static IDictionary<string, Task<object[]>> RefCalls = new Dictionary<string, Task<object[]>>();
+        public struct RouteOption
+        {
+            public object[] options;
+            public string nameType;
+        }
+
+        public static IDictionary<string, RouteOption> RefOptions = new Dictionary<string, RouteOption>();
+        private static IDictionary<string, Task<RouteOption>> RefCalls = new Dictionary<string, Task<RouteOption>>();
         private static object taskLock = new object();
 
-        public static async Task<object[]> LoadTableOptionsAsync(string typeName, ILocalStorageService localStorage)
+        public static async Task<RouteOption> LoadTableOptionsAsync(string typeName, ILocalStorageService localStorage)
         {
-            var objectsTask = default(Task<object[]>);
+            var objectsTask = default(Task<RouteOption>);
             lock (taskLock)
             {
                 if (RefOptions.ContainsKey(typeName))
@@ -33,13 +39,13 @@ namespace EastFive.Admin.UI
             }
             return await objectsTask;
 
-            async Task<object[]> FetchRouteObjectsAsync()
+            async Task<RouteOption> FetchRouteObjectsAsync()
             {
                 var routeString = await localStorage.GetItemAsync<string>(typeName);
                 if (routeString.IsNullOrWhiteSpace())
                 {
                     Console.WriteLine($"No route definition for `{typeName}`");
-                    return new object[] { };
+                    return new RouteOption { options = new object[] { } };
                 }
                 var routeInfo = Newtonsoft.Json.JsonConvert.DeserializeObject<Route>(routeString);
                 var idProp = routeInfo.Properties
@@ -53,6 +59,11 @@ namespace EastFive.Admin.UI
                     .First(
                         (prop, next) => prop.Name,
                         () => "id");
+                var nameType = routeInfo.Properties
+                    .Where(prop => prop.IsTitle)
+                    .First(
+                        (prop, next) => prop.Type,
+                        () => "string");
                 Console.WriteLine($"NAME PROP = `{nameProp}`");
                 return await TableData.TableAsync(typeName,
                         localStorage,
@@ -72,10 +83,15 @@ namespace EastFive.Admin.UI
                                 })
                             .Cast<object>()
                             .ToArray();
-                        RefOptions.Add(typeName, options);
-                        return options;
+                        var routeOption = new RouteOption
+                        {
+                            nameType = nameType,
+                            options = options,
+                        };
+                        RefOptions.Add(typeName, routeOption);
+                        return routeOption;
                     },
-                    (why) => new object[] { });
+                    (why) => new RouteOption { options = new object[] { } });
             }
         }
     }
