@@ -97,7 +97,9 @@ else
                 {
                 <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
                 }
-                <RadzenGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true" Data="@tableRows" TItem="Newtonsoft.Json.Linq.JObject">
+                <RadzenGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true" 
+                            Data="@tableRows" 
+                            TItem="Newtonsoft.Json.Linq.JObject">
                     <Columns>
                         @foreach (var property in route.Properties)
                         {
@@ -265,16 +267,16 @@ else
     {
         Console.WriteLine("Fetching Table...");
         loading = true;
-        await await TableData.TableAsync(this.route,
+        bool updated = await TableData.TableAsync(this.route,
                 localStorage,
             callback =>
             {
                 this.tableRows = callback;
                 Console.WriteLine("Fetched");
                 loading = false;
-                return true.AsTask();
+                return true;
             },
-            async why =>
+            why =>
             {
                 //var msg = new NotificationMessage()
                 //{

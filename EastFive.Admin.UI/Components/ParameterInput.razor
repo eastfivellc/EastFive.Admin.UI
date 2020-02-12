@@ -24,7 +24,28 @@
 }
 @if (typeName == "HttpContent")
 {
-    <RadzenFileInput Style="width:400px;" TValue="string" Change="@(args => ChangeAsync(args))" />
+    bool IsImage()
+    {
+        if (mimeType.IsNullOrWhiteSpace())
+            return false;
+        
+        if (mimeType.ToLower().StartsWith("image/"))
+                return true;
+
+        return false;
+    }
+    if (IsImage())
+    {
+        <RadzenFileInput Style="width:400px;" TValue="string" Change="@(args => ChangeAsync(args))" />
+    }
+    else
+    {
+        <RadzenUpload Url="/api/Content" Style="margin-bottom: 20px;"
+                      Progress="@((args) => { this.info = $"% / {args.Loaded} of {args.Total} bytes."; this.progress = args.Progress; })" />
+        <RadzenCard style="overflow: auto;height:500px;">
+            <RadzenProgressBar Value="@progress" Unit="@info" Visible="@(progress > 0)" Style="margin-bottom: 20px" />
+        </RadzenCard>
+    }
 }
 @if (typeName == "Boolean")
 {
@@ -37,8 +58,14 @@
 
 @code
 {
+    int progress;
+    string info;
+
     [Parameter]
     public string typeName { get; set; }
+
+    [Parameter]
+    public string mimeType { get; set; }
 
     [Parameter]
     public EventCallback<object> OnValueChanged { get; set; }

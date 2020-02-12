@@ -13,6 +13,8 @@ namespace EastFive.Api.Resources
 
         public string Name { get; set; }
 
+        public Uri Path { get; set; }
+
         public string Description { get; set; }
 
         public Parameter[] Parameters { get; set; }

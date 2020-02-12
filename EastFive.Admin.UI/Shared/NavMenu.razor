@@ -1,0 +1,140 @@
+﻿@using EastFive;
+@using EastFive.Extensions;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage;
+@using Radzen.Blazor
+@using Radzen;
+@inject DialogService dialogService
+
+    @*<div class="top-row pl-4 navbar navbar-dark">
+        @if (selectedServer.HasValue)
+        {
+            <RadzenSplitButton class="navbar-brand" Click="@((args) => Server.SelectServer(args, dialogService))" Text="@selectedServer.Value.title" Style="margin-bottom: 20px;">
+                <ChildContent>
+                    @foreach (var server in Server.Servers)
+                    {
+                        <RadzenSplitButtonItem Text="@server.title" Value="@server.id.ToString("N")" />
+                    }
+                    <RadzenSplitButtonItem Text="New" Value="" />
+                </ChildContent>
+            </RadzenSplitButton>
+        }
+        else
+        {
+            <RadzenSplitButton class="navbar-brand" Click="@((args) => Server.SelectServer(args, dialogService))" Text="Add Server" Style="margin-bottom: 20px;">
+            </RadzenSplitButton>
+        }
+    </div>*@
+@if (!String.IsNullOrWhiteSpace(failureMessage))
+{
+    <p><code>@failureMessage</code></p>
+}
+
+@if (entryPoints == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+        <ul class="nav flex-column">
+            @foreach (var endpoint in entryPoints.Where(ep => ep.Name.HasBlackSpace()))
+            {
+                var link = $"resource/{endpoint.Name}";
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="@link">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> @endpoint.Name
+                    </NavLink>
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    private Server? selectedServer = default;
+    private bool collapseNavMenu = true;
+    private Api.Resources.Route[] endpoints = null;
+    private Api.Resources.Route[] entryPoints = null;
+    private string failureMessage;
+
+    public static IDictionary<string, Api.Resources.Route> ManifestEndpoints { get; set; }
+
+    private string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        //bool success = await await Comms.GetManifestAsync(localStorage,
+        //    async endpoints =>
+        //    {
+        //        this.endpoints = endpoints;
+        //        this.entryPoints = endpoints.Where(ep => ep.IsEntryPoint).ToArray();
+
+        //        foreach (var ep in endpoints)
+        //        {
+        //            Console.WriteLine($"DEFINITING ROUTE for `{ep.Name.ToLower()}`");
+        //            await localStorage.SetItemAsync(ep.Name.ToLower(), Newtonsoft.Json.JsonConvert.SerializeObject(ep));
+        //        }
+        //        return true;
+        //    },
+        //    (message) =>
+        //    {
+        //        this.failureMessage = message;
+        //        return false.AsTask();
+        //    });
+    }
+
+    private void SelectServer(RadzenSplitButtonItem item)
+    {
+        if (item != null)
+        {
+            if (Guid.TryParse(item.Value, out Guid serverId))
+            {
+                var newSelectedServer = Server.Servers
+                    .Where(server => server.id == serverId)
+                    .First();
+                entryPoints = newSelectedServer.EntryPoints;
+                endpoints = newSelectedServer.endpoints;
+                selectedServer = newSelectedServer;
+                return;
+            }
+        }
+
+        if(selectedServer.HasValue)
+        {
+            var server = selectedServer.Value;
+            dialogService.Open<EastFive.Admin.UI.Pages.ServerCreation>($"Update Server",
+                new Dictionary<string, object>()
+                {
+                    { "ServerId", server.id },
+                    { "serverMaybe", server }
+                },
+                new DialogOptions()
+                {
+                    Width = "700px", Height = "530px",
+                    Left = "calc(50% - 350px)",
+                    Top = "calc(50% - 265px)"
+                });
+        }
+
+        AddServer();
+    }
+
+    private void AddServer()
+    {
+        var serverId = Guid.NewGuid();
+        var newServer = new Server
+        {
+            id = serverId,
+        };
+        Server.Servers.Add(newServer);
+        dialogService.Open<EastFive.Admin.UI.Pages.ServerCreation>($"Add Server",
+            new Dictionary<string, object>() { { "ServerId", serverId } },
+            new DialogOptions() { Width = "700px", Height = "530px", Left = "calc(50% - 350px)", Top = "calc(50% - 265px)" });
+    }
+}

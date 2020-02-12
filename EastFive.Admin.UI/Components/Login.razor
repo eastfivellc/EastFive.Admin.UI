@@ -1,0 +1,202 @@
+﻿@using Radzen;
+@using Radzen.Blazor
+@using EastFive.Api.Resources;
+@using EastFive.Extensions;
+@using EastFive.Async;
+@using EastFive.Collections.Generic;
+@using EastFive.Linq;
+@using EastFive.Linq.Async;
+@using Microsoft.AspNetCore.Components;
+@using Newtonsoft.Json.Linq;
+
+@if (!methods.AnyNullSafe())
+{
+    <div class="row justify-content-center">
+        <span>Select a server.</span>
+    </div>
+}
+
+@foreach (var method in methods.NullToEmpty())
+{
+    <div class="row justify-content-center">
+        <RadzenButton ButtonType="ButtonType.Button"
+                      Icon="input"
+                      Text="@method.name"
+                      Click="@(() => LoginAsync(method))"
+                      Style="margin-bottom: 20px" />
+    </div>
+}
+
+@code
+{
+    EastFive.Azure.Auth.Method[] methods;
+    EastFive.Azure.Auth.Session? session;
+
+    [Parameter]
+    public Server? Server { get; set; }
+
+    [Parameter]
+    public EventCallback<Server?> ServerChanged { get; set; }
+
+    [Inject]
+    public NavigationManager NavigationManager { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        Console.WriteLine("Initializing Login");
+        if (!Server.HasValue)
+        {
+            Console.WriteLine("Server not set.");
+            return;
+        }
+
+        Console.WriteLine("Fetching methods");
+        var newSession = new Azure.Auth.Session()
+        {
+            sessionId = Ref<Azure.Auth.Session>.NewRef(),
+        };
+        session = await Comms.PostAsync("XSession", "CreateAsync",
+                newSession,
+                this.Server.Value,
+            onSuccess: () => newSession,
+            onNoMatchingEndpoint: () =>
+            {
+                Console.WriteLine($"No matching endpoint `XSession`.");
+                return session;
+            },
+            onNoMatchingMethod: () =>
+            {
+                Console.WriteLine($"No matching method `CreateAsync`.");
+                return session;
+            },
+            onFailure: why =>
+            {
+                Console.WriteLine(why);
+                return session;
+            });
+
+        if (!session.HasValue)
+        {
+            Console.WriteLine("Session is empty, returning.");
+            return;
+        }
+
+        Console.WriteLine("Getting methods.");
+        methods = await Comms.GetAsync(
+                "AuthenticationMethod", "QueryBySessionAsync",
+                "session"
+                    .PairWithValue(session.Value.id.ToString())
+                    .AsArray()
+                    .ToDictionary(),
+                this.Server.Value,
+            onSuccess: (EastFive.Azure.Auth.Method[] methods) =>
+            {
+                Console.WriteLine($"Found {methods.Length} methods.");
+                return methods;
+            },
+            onNoMatchingEndpoint: () =>
+            {
+                Console.WriteLine("No Matching Endpoint.");
+                return new Azure.Auth.Method[] { };
+            },
+            onNoMatchingMethod: () =>
+            {
+                Console.WriteLine("No Matching Method.");
+                return new Azure.Auth.Method[] { };
+            },
+            onFailure: why =>
+            {
+                Console.WriteLine($"Failure:`{why}`.");
+                return new Azure.Auth.Method[] { };
+            });
+        Console.WriteLine($"Set {methods.Length} methods.");
+        StateHasChanged();
+    }
+
+    async void LoginAsync(EastFive.Azure.Auth.Method method)
+    {
+        var authorization = new EastFive.Azure.Auth.Authorization
+        {
+            authorizationRef = Ref<EastFive.Azure.Auth.Authorization>.NewRef(),
+            Method = method.authenticationId,
+            LocationAuthenticationReturn = new Uri($"{NavigationManager.BaseUri}/SessionCreation?server={Server.Value.id}"),
+        };
+        Uri redirect = await Comms.PostAsync(
+                "XAuthorization", "CreateAsync",
+                authorization,
+                this.Server.Value,
+            onSuccess: (EastFive.Azure.Auth.Authorization authorization) =>
+            {
+                return authorization.LocationAuthentication;
+            },
+            onNoMatchingEndpoint: () => default,
+            onNoMatchingMethod: () => default,
+            onFailure: why => default);
+
+        NavigationManager.NavigateTo(redirect.AbsoluteUri);
+    }
+
+    public static async Task ProcessRedirectAsync(NavigationManager navigationManager,
+        Blazored.LocalStorage.ILocalStorageService localStorage, Radzen.DialogService dialogService)
+    {
+        if (Uri.TryCreate(navigationManager.Uri, UriKind.RelativeOrAbsolute, out Uri currentUri))
+        {
+            if (currentUri.TryGetQueryParam("request_id", out string requestIdStr))
+            {
+                if (Guid.TryParse(requestIdStr, out Guid requestId))
+                {
+                    Console.WriteLine($"Found request_id = `{requestId}`");
+                    if (currentUri.TryGetQueryParam("server", out string serverIdStr))
+                    {
+                        if (Guid.TryParse(serverIdStr, out Guid serverId))
+                        {
+                            Console.WriteLine($"Found server id = `{serverId}`");
+                            bool created = await UI.Server.Servers
+                                .Where(server => server.id == serverId)
+                                .First(
+                                    async (server, next) =>
+                                    {
+                                        return await await Comms.PostAsync("XSession", "CreateAsync",
+                                            new EastFive.Azure.Auth.Session
+                                            {
+                                                authorization = requestId
+                                                    .AsRef<EastFive.Azure.Auth.Authorization>()
+                                                    .Optional(),
+                                                sessionId = Ref<EastFive.Azure.Auth.Session>.NewRef(),
+                                            },
+                                            server,
+                                            async (EastFive.Azure.Auth.Session validatedSession) =>
+                                            {
+                                                Console.WriteLine($"New session = `{validatedSession.token}`");
+                                                var session = new UI.Session
+                                                {
+                                                    id = Guid.NewGuid(),
+                                                    serverId = server.id,
+                                                    token = validatedSession.token,
+                                                };
+                                                var sessionNameAccountId = validatedSession.account.HasValue ?
+                                                    await Comms.GetAsync("Whoami", "GetAsync",
+                                                        new Dictionary<string, string>(),
+                                                        session,
+                                                        (EastFive.Azure.Auth.Whoami whoAmI) => whoAmI.name,
+                                                        () => validatedSession.account.Value.ToString())
+                                                    :
+                                                    "Unauthenticated";
+                                                session.title = $"{sessionNameAccountId} - ({server.title})";
+                                                await Session.CreateSession(session, localStorage);
+                                                await Session.SelectSessionAsync(session, localStorage);
+                                                Console.WriteLine($"Navigation to: {navigationManager.BaseUri}");
+                                                navigationManager.NavigateTo(navigationManager.BaseUri);
+                                                dialogService.Close();
+                                                return true;
+                                            });
+                                    },
+                                    () => false.AsTask());
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

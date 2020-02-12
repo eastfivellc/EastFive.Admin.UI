@@ -46,6 +46,10 @@ app {
     text-overflow: ellipsis;
 }
 
+.ui-splitbutton .ui-menuitem-text {
+    color: rgb(33, 37, 41);
+}
+
 .sidebar {
     background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
 }

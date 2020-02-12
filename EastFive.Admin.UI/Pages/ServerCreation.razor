@@ -1,0 +1,117 @@
+﻿@page "/ServerCreation/{ServerId}"
+
+@using Radzen.Blazor
+@using Radzen;
+@using EastFive.Linq;
+@using EastFive.Extensions;
+@inject Radzen.DialogService dialogService
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+@if (!String.IsNullOrWhiteSpace(failureMessage))
+{
+    <p><code>@failureMessage</code></p>
+}
+<RadzenTemplateForm Data="@server" Submit="(Server server) => SaveAsync(server)">
+    <RadzenCard Style="margin-bottom: 20px;">
+        <div class="row">
+            <div class="col-md-6">
+                <div>Server Name:</div>
+                <div style="margin-top:20px">Location:</div>
+            </div>
+            <div class="col-md-6">
+                <div>
+                    <RadzenTextBox Name="Title" 
+                                   Placeholder="Text..."
+                                   @bind-Value="server.title"
+                                   Style="margin-bottom: 20px" />
+                    <RadzenRequiredValidator Component="Title" Text="Title is required" Popup="@true" Style="position: absolute" />
+                </div>
+                <div>
+                    <RadzenTextBox Name="Location"
+                                   Placeholder="http://www.example.com..."
+                                   Value="@(server.serverLocation.IsDefaultOrNull()? string.Empty : server.serverLocation.OriginalString)"
+                                   Change="(args) => Uri.TryCreate(args, UriKind.Absolute, out server.serverLocation)" 
+                                   Style="margin-bottom: 20px" />
+                    <RadzenRequiredValidator Component="Location" Text="Location is required" Popup="@true"  Style="position: absolute"/>
+                </div>
+            </div>
+        </div>
+    </RadzenCard>
+    <div class="row justify-content-center">
+        <div class="col-md-12 d-flex align-items-end justify-content-center" style="margin-top: 16px;">
+            <RadzenButton ButtonType="ButtonType.Submit" Icon="save" Text="Save" />
+            <RadzenButton Click="@(() => RefreshAsync())"
+                          ButtonType="ButtonType.Button"
+                          Icon="refresh"
+                          Text="Refresh"
+                          style="display: inline-block; margin-left: 10px;" />
+            <RadzenButton Click="@(() => DeleteAsync())"
+                          ButtonType="ButtonType.Button"
+                          Icon="delete_forever"
+                          Text="Delete"
+                          style="display: inline-block; margin-left: 10px;" />
+            <RadzenButton Click="@(() => dialogService.Close())"
+                          ButtonStyle="ButtonStyle.Light" Icon="cancel" Text="Cancel"
+                          style="display: inline-block; margin-left: 10px;" />
+        </div>
+    </div>
+</RadzenTemplateForm>
+
+@code
+{
+    [Parameter] public Guid ServerId { get; set; }
+
+    [Parameter] public EventCallback<Server> OnServerSelected { get; set; } 
+
+    Server server;
+
+    string failureMessage;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        this.server = Server.Servers
+            .Where(server => server.id == ServerId)
+            .First(
+                (server, next) => server,
+                () => new Server
+                {
+                    id = ServerId,
+                });
+    }
+
+    private async void SaveAsync(Server server)
+    {
+        Console.WriteLine("Saving Server -- Begin");
+        await Server.SaveServer(server, localStorage);
+        Console.WriteLine("Saving Server -- Closing dialog box");
+        await OnServerSelected.InvokeAsync(server);
+        dialogService.Close(false);
+        Console.WriteLine("Saving server -- End");
+    }
+
+    private async void DeleteAsync()
+    {
+        Console.WriteLine("DeleteAsync -- Begin");
+        await Server.DeleteServer(server.id, localStorage);
+        dialogService.Close();
+        Console.WriteLine("DeleteAsync -- End");
+    }
+
+    private async void RefreshAsync()
+    {
+        Console.WriteLine("DeleteAsync -- Begin");
+        await Server.DeleteServer(server.id, localStorage);
+        dialogService.Close();
+        Console.WriteLine("DeleteAsync -- End");
+    }
+
+    public static DialogOptions dialogOptions = new DialogOptions()
+    {
+        Width = "700px",
+        Height = "530px",
+        Left = "calc(50% - 350px)",
+        Top = "calc(50% - 265px)",
+    };
+}

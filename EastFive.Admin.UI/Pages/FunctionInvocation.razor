@@ -1,0 +1,115 @@
+﻿@page "/FunctionInvocation/{MessageId}"
+
+@using Radzen.Blazor
+@using Radzen;
+@using EastFive.Linq;
+@using EastFive.Extensions;
+@using EastFive.Azure.Functions;
+@inject Radzen.DialogService dialogService
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+    <RadzenCard Style="margin-bottom: 20px;">
+        <div class="row">
+            <div class="col-md-3">
+                <div>ID:</div>
+                <div style="margin-top:20px">@message.method:</div>
+            </div>
+            <div class="col-md-9">
+                <div>@message.id</div>
+                <div style="margin-top:20px">@message.requestUri</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <span Style="margin-bottom: 20px;">Last Modified:</span>
+                <div Style="margin-bottom: 20px;">@message.lastModified</div>
+            </div>
+            <div class="col-md-6">
+                <span Style="margin-bottom: 20px;">Last Executed:</span>
+                <div Style="margin-bottom: 20px;">@message.lastExecuted</div>
+            </div>
+        </div>
+        <div class="row">
+            <RadzenPanel Text="Headers" Style="width:100%">
+                <div class="col-md-3">
+                    @foreach (var header in message.headers.NullToEmpty())
+                    {
+                        <div style="margin-top:20px">@header.Key:</div>
+                    }
+                </div>
+                <div class="col-md-9">
+                    @foreach (var header in message.headers.NullToEmpty())
+                    {
+                        <div style="margin-top:20px">@header.Value</div>
+                    }
+                </div>
+            </RadzenPanel>
+        </div>
+        <div class="row">
+            <RadzenPanel Text="Content" Style="width:100%">
+                <code>
+                    @(System.Text.Encoding.UTF8.GetString(message.content))
+                </code>
+            </RadzenPanel>
+        </div>
+    </RadzenCard>
+    <div class="row justify-content-center">
+        <div class="col-md-12 d-flex align-items-end justify-content-center" style="margin-top: 16px;">
+            <RadzenButton ButtonType="ButtonType.Button"
+                          Click="@(() => InvokeAsync())"
+                          Icon="save" Text="Invoke" />
+            <RadzenButton ButtonType="ButtonType.Button"
+                          Click="@(() => EnqueueAsync())"
+                          Icon="delete_forever"
+                          Text="Enqueue"
+                          style="display: inline-block; margin-left: 10px;" />
+            <RadzenButton Click="@(() => dialogService.Close())"
+                          ButtonStyle="ButtonStyle.Light" Icon="cancel" Text="Cancel"
+                          style="display: inline-block; margin-left: 10px;" />
+        </div>
+    </div>
+
+@code
+{
+    [Parameter] public Guid MessageId { get; set; }
+
+    [Parameter] public InvocationMessage message { get; set; }
+
+    private async void InvokeAsync()
+    {
+        Guid [] idsRun = await Comms.GetAsync(
+                "InvocationMessage", "InvokeAsync",
+                new Dictionary<string, string>()
+                {
+                    { "id", message.id.ToString() }
+                },
+                Session.selectedSession.Value,
+            (Guid[] ids) =>
+            {
+                return ids;
+            });
+    }
+
+    private async void EnqueueAsync()
+    {
+        Guid [] idsRun = await Comms.GetAsync(
+                "InvocationMessage", "EnqueueAsync",
+                new Dictionary<string, string>()
+                {
+                    { "id", message.id.ToString() }
+                },
+                Session.selectedSession.Value,
+            (Guid[] ids) =>
+            {
+                return ids;
+            });
+    }
+
+    public static DialogOptions dialogOptions = new DialogOptions()
+    {
+        Width = "700px",
+        Height = "530px",
+        Left = "calc(50% - 350px)",
+        Top = "calc(50% - 265px)",
+    };
+}

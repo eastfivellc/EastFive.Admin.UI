@@ -1,0 +1,483 @@
+﻿@page "/SessionCreation/{SessionId}"
+
+@using EastFive;
+@using EastFive.Linq;
+@using EastFive.Extensions;
+@using Radzen.Blazor
+@using Radzen;
+@using EastFive.Security;
+@inject Radzen.DialogService dialogService
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+<div class="top-row pl-4 navbar navbar-dark">
+    <div class="col-md-8"></div>
+    <RadzenSplitButton class="navbar-brand"
+                       Click="@((args) => SelectServer(args))"
+                       Text="@(Server.HasValue? Server.Value.title : "Select Server")"
+                       Style="margin-bottom: 20px; float: right;">
+        <ChildContent>
+            @foreach (var server in UI.Server.Servers.NullToEmpty())
+            {
+                <RadzenSplitButtonItem Text="@server.title" Value="@server.id.ToString("N")" />
+            }
+            <RadzenSplitButtonItem Text="New" Value="" />
+        </ChildContent>
+    </RadzenSplitButton>
+</div>
+
+<h3>@session.title</h3>
+
+<RadzenTabs>
+    <Tabs>
+        <RadzenTabsItem Text="Login Provider">
+            <EastFive.Admin.UI.Components.Login Server="@Server" />
+        </RadzenTabsItem>
+        <RadzenTabsItem Text="Manual Session">
+            <RadzenTemplateForm Data="@session" Submit="@((Session args) => { Submit(args); })">
+                <RadzenFieldset Text="Token">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <RadzenTextArea @bind-Value="@session.token"
+                                            Style="margin-bottom: 20px; width: 100%;" />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <RadzenButton Text="Compute"
+                                          Click="GenerateToken"
+                                          style="margin-bottom:20px; float:right" />
+                        </div>
+                    </div>
+                </RadzenFieldset>
+                <RadzenFieldset Text="Parameters">
+                    @if (Server.HasValue)
+                    {
+                        <div class="row">
+                            <div class="col-md-2 align-items-center d-flex">
+                                <RadzenLabel Text="Server"
+                                             style="margin-bottom: 20px;" />
+                            </div>
+                            <div class="col-md-6">
+                                <code>@Server.Value.serverLocation</code>
+                            </div>
+                            <div class="col-md-4 align-items-center d-flex">
+                                <RadzenButton ButtonType="ButtonType.Button"
+                                              Icon="get_app" Text="Load Parameters"
+                                              Click="() => LoadParameters()"
+                                              style="margin-bottom: 20px;" />
+                            </div>
+                        </div>
+                    }
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div style="margin-top:20px">Issuer:</div>
+                            <div style="margin-top:20px">Scope:</div>
+                            <div style="margin-top:20px">Expiration:</div>
+                            <br />
+                        </div>
+                        <div class="col-md-6">
+                            <div>
+                                <RadzenTextBox @bind-Value="@issuer"
+                                               Placeholder="EastFive.Security.Token.Issuer"
+                                               Style="margin-bottom: 20px; width: 100%" />
+                            </div>
+                            <div>
+                                <RadzenTextBox @bind-Value="@scope"
+                                               Placeholder="EastFive.Security.Token.Scope"
+                                               Style="margin-bottom: 20px; width: 100%" />
+                            </div>
+                            <div>
+                                <RadzenDatePicker TValue="DateTime?"
+                                                  @bind-Value="@expirationDateTime"
+                                                  Style="margin-bottom: 20px; width: 100%" />
+                            </div>
+                        </div>
+                    </div>
+                </RadzenFieldset>
+
+                <RadzenFieldset Text="Claims">
+                    <div class="row">
+                        <div class="col-md-3">
+                            @foreach (var claim in Claims.NullToEmpty())
+                            {
+                                <div style="margin-bottom:20px">@claim.name</div>
+                            }
+                        </div>
+                        <div class="col-md-6">
+                            @foreach (var claim in Claims.NullToEmpty())
+                            {
+                                <div style="margin-bottom:20px">(@claim.type)</div>
+                            }
+                        </div>
+                        <div class="col-md-3">
+                            @foreach (var claim in Claims.NullToEmpty())
+                            {
+                                <div style="margin-bottom:20px">(@claim.value)</div>
+                            }
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-7">
+                            <RadzenDropDown AllowClear="true"
+                                            AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                            @bind-Value="@nextClaimType"
+                                            Placeholder="Select..."
+                                            Data="@ClaimOptions"
+                                            TextProperty="name"
+                                            ValueProperty="type"
+                                            Style="margin-bottom: 20px; width:100%;">
+                                <Template>
+                                    @(((Azure.Auth.Claim)context).name) [@(((Azure.Auth.Claim)context).type)]
+                                </Template>
+                            </RadzenDropDown>
+                        </div>
+                        <div class="col-md-3">
+                            <RadzenTextBox @bind-Value="nextClaimValue" Style="margin-bottom: 20px; width:100%;" />
+                        </div>
+                        <div class="col-md-2">
+                            <RadzenButton Text="Add" Click="AddClaim" Style="margin-bottom: 20px;" />
+                        </div>
+                    </div>
+                </RadzenFieldset>
+                <RadzenFieldset Text="Secret">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <RadzenTextArea @bind-Value="@key"
+                                            Placeholder="EastFive.Security.Token.Key"
+                                            Style="margin-bottom: 20px; width: 100%;" />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <RadzenButton Text="Generate"
+                                          Click="GenerateKey"
+                                          style="margin-bottom:20px; float:right" />
+                        </div>
+                    </div>
+                </RadzenFieldset>
+                <div class="row justify-content-center">
+                    <div class="col-md-12 d-flex align-items-end justify-content-center" style="margin-top: 16px;">
+                        <RadzenButton ButtonType="ButtonType.Submit" Icon="save" Text="Save" />
+                        @if (!session.id.IsDefault())
+                        {
+                            <RadzenButton Click="@(() => DeleteAsync())"
+                                          ButtonType="ButtonType.Button"
+                                          Icon="delete_forever"
+                                          Text="Delete"
+                                          style="display: inline-block; margin-left: 10px;" />
+                        }
+                        <RadzenButton Click="@(() => dialogService.Close())"
+                                      ButtonStyle="ButtonStyle.Light" Icon="cancel" Text="Cancel"
+                                      style="display: inline-block; margin-left: 10px;" />
+                    </div>
+                </div>
+            </RadzenTemplateForm>
+        </RadzenTabsItem>
+    </Tabs>
+</RadzenTabs>
+
+
+@code {
+
+    [Parameter] public Guid? SessionId { get; set; }
+
+    [Inject]
+    public NavigationManager navigationManager { get; set; }
+
+    #region Setup
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Console.WriteLine("Initializing Session Creation....");
+        //await Components.Login.ProcessRedirectAsync(navigationManager, localStorage, dialogService);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        Console.WriteLine("Updating session creation parameters....");
+
+        if (SessionId.HasValue)
+        {
+            Console.WriteLine($"Session ID set to {SessionId}");
+            if (session.id.IsDefaultOrEmpty())
+            {
+                Console.WriteLine($"Locating session");
+                session = Session.Sessions
+                    .Where(session => session.id == SessionId.Value)
+                    .First(
+                        (session, next) => session,
+                        () => new Session { });
+            }
+            Console.WriteLine($"Session set to {session.id}");
+        }
+
+        if (session.serverId.IsDefaultOrEmpty())
+            session.serverId = UI.Server.Servers
+                .First(
+                    (server, next) => server.id,
+                    () => default(Guid));
+
+        if (!UI.Server.Servers.AnyNullSafe())
+        {
+            Console.WriteLine("No servers");
+            await NewServerAsync();
+            return;
+        }
+
+        await SetClaimsAsync();
+    }
+
+    #endregion
+
+    #region Server
+
+    Session session;
+    Server? Server
+    {
+        get
+        {
+            return Admin.UI.Server.Servers
+                .NullToEmpty()
+                .Where(server => server.id == session.serverId)
+                .First(
+                    (server, next) => server,
+                    () => default(Server?));
+        }
+    }
+
+    public async void SelectServer(RadzenSplitButtonItem item)
+    {
+        if (item != null)
+        {
+            Console.WriteLine($"Selecting server `{item.Value}`");
+            if (Guid.TryParse(item.Value, out Guid serverId))
+            {
+                session.serverId = serverId;
+                await UI.Server.SetSelectedServer(serverId, localStorage);
+                await SetClaimsAsync();
+                return;
+            }
+
+            await NewServerAsync();
+            return;
+        }
+
+        var server = Server;
+        if(!server.HasValue)
+        {
+            await NewServerAsync();
+            return;
+        }
+
+        Console.WriteLine($"Updating server `{server.Value.id}`");
+        dialogService.OnClose += async (obj) =>
+        {
+            await UI.Server.SetSelectedServer(server.Value.id, localStorage);
+        };
+        dialogService.Open<EastFive.Admin.UI.Pages.ServerCreation>($"Update Server",
+            new Dictionary<string, object>()
+            {
+                { "ServerId", server.Value.id }
+            },
+            ServerCreation.dialogOptions);
+    }
+
+    async Task NewServerAsync()
+    {
+        Console.WriteLine("Input New Server");
+        var serverId = Guid.NewGuid();
+        //EventCallback<Server> callback = async (sx) => { await Task.Yield(); _messageText = "Blaze It!"; };
+        dialogService.OnClose += async (obj) =>
+        {
+            await UI.Server.SetSelectedServer(serverId, localStorage);
+            Console.WriteLine($"Close Returned {obj.GetType().FullName}");
+        };
+
+        var dialog = await dialogService.OpenAsync<EastFive.Admin.UI.Pages.ServerCreation>(
+            $"New Server",
+            new Dictionary<string, object>()
+            {
+                { "ServerId", serverId },
+            },
+            ServerCreation.dialogOptions);
+        Console.WriteLine($"Returned {dialog.GetType().FullName}");
+    }
+
+    #endregion
+
+    #region Claims
+
+    Azure.Auth.Claim[] Claims;
+
+    Azure.Auth.Claim[] ClaimOptions;
+
+    string nextClaimValue;
+
+    Azure.Auth.Claim? nextClaimType;
+
+    void AddClaim()
+    {
+        Claims = Claims
+            .NullToEmpty()
+            .Append(
+                new Azure.Auth.Claim()
+                {
+                    name = nextClaimType.Value.name,
+                    type = nextClaimType.Value.type,
+                    value = nextClaimValue,
+                })
+            .ToArray();
+    }
+
+    async Task SetClaimsAsync()
+    {
+        if (!Server.HasValue)
+            return;
+
+        this.ClaimOptions = await Comms.OptionsAsync("Claim", "OptionsAsync", default, Server.Value,
+            onSuccess: (Azure.Auth.Claim[] claims) =>claims,
+            onNoMatchingEndpoint:() =>
+            {
+                Console.WriteLine($"No matching endpoint 'Claim'");
+                return new Azure.Auth.Claim[] { };
+            },
+            onNoMatchingMethod: () =>
+            {
+                Console.WriteLine($"No matching method 'OptionsAsync'");
+                return new Azure.Auth.Claim[] { };
+            },
+            onFailure:(why) =>
+            {
+                Console.WriteLine(why);
+                return new Azure.Auth.Claim[] { };
+            });
+    }
+
+    #endregion
+
+    #region Action Buttons
+
+    async void Submit(Session newSession)
+    {
+        this.session = newSession;
+        if (this.session.id.IsDefaultOrEmpty())
+        {
+            this.session.id = Guid.NewGuid();
+            await Session.CreateSession(newSession, localStorage);
+            dialogService.Close();
+            return;
+        }
+        await Session.UpdateSession(this.session, localStorage);
+        dialogService.Close();
+        return;
+    }
+
+    private async void DeleteAsync()
+    {
+        Console.WriteLine("DeleteAsync -- Begin");
+        await Session.DeleteSession(session.id, localStorage);
+        dialogService.Close();
+        Console.WriteLine("DeleteAsync -- End");
+    }
+
+    #endregion
+
+    #region Parameters
+
+    private async void LoadParameters()
+    {
+        if (!this.Server.HasValue)
+            return;
+        bool updated = await Comms.GetAsync("Token", "GetAsync",
+                new Dictionary<string, string>(),
+                this.Server.Value,
+            onSuccess:(EastFive.Azure.Auth.Token token) =>
+            {
+                this.issuer = token.issuer;
+                this.scope = token.scope;
+                this.expirationDateTime = token.expiration;
+                StateHasChanged();
+                return true;
+            },
+            onNoMatchingEndpoint: () =>
+            {
+                Console.WriteLine($"No matching endpoint `Token`.");
+                return false;
+            },
+            onNoMatchingMethod:() =>
+            {
+                Console.WriteLine($"No matching method `GetAsync`.");
+                return false;
+            },
+            onFailure:why =>
+            {
+                Console.WriteLine(why);
+                return false;
+            });
+    }
+
+    #region Token
+
+    string token;
+
+    void GenerateToken()
+    {
+        Console.WriteLine("Generating token");
+        if (!expirationDateTime.HasValue)
+        {
+            Console.WriteLine("No expiration specified");
+            return;
+        }
+        var expiration = expirationDateTime.Value - DateTime.UtcNow;
+
+        if (!Uri.TryCreate(scope, UriKind.RelativeOrAbsolute, out Uri scopeUri))
+        {
+            Console.WriteLine($"Invalid scope = {scope}");
+            return;
+        }
+        bool tokenCreated = key.CreateToken(issuer, scopeUri,
+                DateTime.UtcNow, expiration,
+                Claims
+                    .NullToEmpty()
+                    .Select(
+                        claim => new System.Security.Claims.Claim(
+                            claim.type, claim.value))
+                    .ToArray(),
+            newToken =>
+            {
+                Console.WriteLine($"Created token {newToken}");
+                token = newToken;
+                return true;
+            },
+            why =>
+            {
+                Console.WriteLine($"Failed to created token:{why}");
+                return false;
+            });
+    }
+
+    #endregion
+
+    string issuer;
+
+    string scope;
+
+    DateTime? expirationDateTime;
+
+    #region Key
+
+    string key;
+    void GenerateKey()
+    {
+        key = EastFive.Security.RSA.Generate(
+        (privateKey, publicKey) => privateKey);
+        GenerateToken();
+    }
+
+    #endregion
+
+    #endregion
+
+}

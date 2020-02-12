@@ -1,0 +1,131 @@
+﻿@page "/Functions"
+@inject HttpClient Http
+@using SharpDom.Tags
+@using System.IO
+@using EastFive.Api.Resources;
+@using System.Threading;
+@using EastFive;
+@using EastFive.Extensions;
+@using EastFive.Collections.Generic;
+@using EastFive.Admin.UI.Components;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@using Radzen.Blazor
+@using Radzen;
+@using Newtonsoft.Json.Linq
+@inject Radzen.DialogService dialogService
+@*@inject NotificationService notificationService*@
+
+<RadzenTemplateForm Data="@query" Submit="@((InvocationMessageQuery args) => { Submit(args); })">
+    <div class="row">
+        <div class="col-md-4">Display Range</div>
+        <div class="col-md-3">
+            <span>Start Time:</span>
+            <RadzenDatePicker ShowTime="true" @bind-Value="@query.startTime"
+                              Style="margin-bottom: 20px;" />
+        </div>
+        <div class="col-md-3">
+            <span>End Time:</span>
+            <RadzenDatePicker ShowTime="true" @bind-Value="@query.endTime"
+                              Style="margin-bottom: 20px;" />
+        </div>
+        <div class="col-md-2">
+            <RadzenButton ButtonType="ButtonType.Submit" Icon="youtube_searched_for" Text="Lookup" />
+        </div>
+    </div>
+</RadzenTemplateForm>
+
+<div class="row">
+    <RadzenGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true"
+                Data="@messages"
+                TItem="EastFive.Azure.Functions.InvocationMessage"
+                RowSelect="Selected">
+        <Columns>
+            <RadzenGridColumn TItem="EastFive.Azure.Functions.InvocationMessage" Property="id" Title="ID">
+                <Template Context="prop">
+                    @prop.id
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="EastFive.Azure.Functions.InvocationMessage" Property="method" Title="METHOD">
+                <Template Context="prop">
+                    @prop.method
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="EastFive.Azure.Functions.InvocationMessage" Property="requestUri" Title="URL">
+                <Template Context="prop">
+                    @prop.requestUri
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="EastFive.Azure.Functions.InvocationMessage" Property="lastModified" Title="lastModified">
+                <Template Context="prop">
+                    @prop.lastModified
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="EastFive.Azure.Functions.InvocationMessage" Property="lastExecuted" Title="lastExecuted">
+                <Template Context="prop">
+                    @prop.lastExecuted
+                </Template>
+            </RadzenGridColumn>
+        </Columns>
+    </RadzenGrid>
+</div>
+
+@code {
+
+    public class InvocationMessageQuery
+    {
+        public DateTime startTime;
+        public DateTime endTime;
+    }
+
+    public InvocationMessageQuery query { get; set; }
+
+    private EastFive.Azure.Functions.InvocationMessage[] messages = new Azure.Functions.InvocationMessage[] { };
+
+    protected override async Task OnInitializedAsync()
+    {
+        query = new InvocationMessageQuery()
+        {
+            startTime = DateTime.Now - TimeSpan.FromDays(3),
+            endTime = DateTime.Now,
+        };
+        if (!Session.selectedSession.HasValue)
+        {
+            this.messages = new Azure.Functions.InvocationMessage[] { };
+            return;
+        }
+    }
+
+    async void Selected(EastFive.Azure.Functions.InvocationMessage message)
+    {
+        Console.WriteLine($"Selecting message `{message.id}`");
+        //dialogService.OnClose += async (obj) =>
+        //{
+        //    await UI.Server.SetSelectedServer(server.Value.id, localStorage);
+        //    Console.WriteLine($"Close Returned {obj.GetType().FullName}");
+        //};
+        dialogService.Open<EastFive.Admin.UI.Pages.FunctionInvocation>($"Invocation Message",
+            new Dictionary<string, object>()
+            {
+                { "Message", message }
+            },
+            MainLayout.dialogOptions);
+    }
+
+    async void Submit(InvocationMessageQuery query)
+    {
+        this.messages = await Comms.GetAsync(
+                "InvocationMessage", "ListAsync",
+                new Dictionary<string, string>()
+                {
+                    {  "start_time", query.startTime.ToString() },
+                    {  "end_time", query.endTime.ToString() }
+                    },
+                Session.selectedSession.Value,
+            (EastFive.Azure.Functions.InvocationMessage[] messages) =>
+            {
+                return messages;
+            });
+        StateHasChanged();
+    }
+
+}
