@@ -1,0 +1,40 @@
+﻿@using Microsoft.AspNetCore.Components;
+
+@using Newtonsoft.Json.Linq;
+
+@using Radzen;
+@using Radzen.Blazor
+
+@using EastFive.Extensions;
+@using EastFive.Async;
+@using EastFive.Collections.Generic;
+@using EastFive.Linq;
+@using EastFive.Linq.Async;
+@using EastFive.Api.Resources;
+
+@if (token.Type == JTokenType.String)
+{
+    var jString = token.Value<string>();
+    <div class="rTableCell">
+        <span>@jString</span>
+    </div>
+}
+
+@if (token.Type == JTokenType.Property)
+{
+    var jProp = token as JProperty;
+    var jString = jProp.Value.Value<string>();
+    var id = $"{jProp.Name}_{index}";
+    <div Id="@id" class="rTableCell">
+        <span>@jString</span>
+    </div>
+}
+
+@code
+{
+    [Parameter]
+    public JToken token { get; set; }
+
+    [Parameter]
+    public int index { get; set; }
+}

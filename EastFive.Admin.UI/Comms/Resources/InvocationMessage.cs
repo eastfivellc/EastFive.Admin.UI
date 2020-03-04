@@ -32,6 +32,13 @@ namespace EastFive.Azure.Functions
         public Uri requestUri;
 
         [JsonProperty]
+        public Uri referrer;
+
+        public const string InvocationMessageSourcePropertyName = "InvocationMessageSource";
+        [JsonProperty]
+        public IRefOptional<InvocationMessage> invocationMessageSource;
+
+        [JsonProperty]
         public string method;
 
         [JsonProperty]

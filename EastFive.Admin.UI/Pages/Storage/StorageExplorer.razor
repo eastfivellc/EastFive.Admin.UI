@@ -1,0 +1,135 @@
+﻿@page "/Storage/Explorer"
+
+@using System.IO
+@using System.Threading;
+
+@using Newtonsoft.Json.Linq
+
+@using Radzen;
+@using Radzen.Blazor
+
+@using ChartJs.Blazor.Charts
+@using ChartJs.Blazor.ChartJS.PieChart
+@using ChartJs.Blazor.ChartJS.Common.Properties
+@using ChartJs.Blazor.Util
+
+@using EastFive;
+@using EastFive.Linq;
+@using EastFive.Extensions;
+@using EastFive.Api.Resources;
+@using EastFive.Collections.Generic;
+@using EastFive.Admin.UI.Components;
+@using EastFive.Azure.Storage;
+
+<TableSelection OnSelectionChanged="UpdateTable" OnAction="@FetchTableRowsAsync" CallToAction="Fetch Rows" />
+
+@if (!table.IsDefaultOrNull())
+{
+    <RadzenGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true"
+                Data="@tableRows.NullToEmpty()"
+                TItem="StorageRow">
+        <Columns>
+            <RadzenGridColumn TItem="StorageRow" Property="rowKey" Title="Row Key">
+                <Template Context="prop">
+                    <span>@prop.rowKey</span>
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="StorageRow" Property="partitionKey" Title="Partition">
+                <Template Context="prop">
+                    <span>@prop.partitionKey</span>
+                </Template>
+            </RadzenGridColumn>
+            @foreach (var property in @table.properties)
+            {
+                <RadzenGridColumn TItem="StorageRow" Property="@property.name" Title="@property.name">
+                    <Template Context="prop">
+                        @if (prop.properties.ContainsKey(property.name))
+                        {
+                            var value = prop.properties[property.name];
+                            if (value == null)
+                            {
+                                <i>null</i>
+                            }
+                            else
+                            {
+                                var valueType = value.GetType();
+                                if (typeof(Guid).IsAssignableFrom(valueType))
+                                {
+                                    var guidValue = (Guid)value;
+
+                                    @guidValue.ToString()
+                                }
+                                else if (typeof(string).IsAssignableFrom(valueType))
+                                {
+                                    var strValue = (string)value;
+
+                                    @strValue
+                                }
+                                else if (valueType.IsNumeric())
+                                {
+                                    var strValue = value.ToString();
+
+                                    @strValue
+                                }
+                                else if (typeof(DateTime).IsAssignableFrom(valueType))
+                                {
+                                    var dtValue = (DateTime)value;
+
+                                    @dtValue.ToString("YY-mm-DD HH:MM:SS")
+                                }
+                                else if (valueType.IsArray)
+                                {
+                                    var arrValue = (value as object[]);
+                                    <ul>
+                                        @foreach (var arrV in arrValue)
+                                        {
+                                            <li>@arrV</li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    @valueType.Name
+                                }
+                            }
+                        }
+                        else
+                        {
+                            @("--")
+                        }
+                    </Template>
+                </RadzenGridColumn>
+            }
+        </Columns>
+    </RadzenGrid>
+}
+
+@code {
+
+    Azure.Storage.StorageTable table;
+
+    private StorageRow[] tableRows = new StorageRow[] { };
+
+    private async void FetchTableRowsAsync(Azure.Storage.StorageTable table)
+    {
+        this.table = table;
+        this.tableRows = await Comms.GetAsync("StorageTable", "List",
+            new Dictionary<string, string>()
+            {
+                { "name", table.name }
+            },
+            Session.selectedSession.Value,
+            (StorageRow[] tableRows) =>
+            {
+                return tableRows;
+            });
+        StateHasChanged();
+    }
+
+    void UpdateTable(Azure.Storage.StorageTable table)
+    {
+        Console.WriteLine("Updating table");
+        this.table = table;
+    }
+
+}

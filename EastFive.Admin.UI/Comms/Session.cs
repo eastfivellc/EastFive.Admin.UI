@@ -1,13 +1,15 @@
-﻿using Blazored.LocalStorage;
-using EastFive.Extensions;
-using EastFive.Linq;
-using EastFive.Linq.Async;
-using Radzen;
-using Radzen.Blazor;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+
+using Blazored.LocalStorage;
+
+using Radzen;
+
+using EastFive.Linq;
+using EastFive.Extensions;
+using EastFive.Linq.Async;
 
 namespace EastFive.Admin.UI
 {
@@ -18,6 +20,7 @@ namespace EastFive.Admin.UI
         public const string SessionsLocalStorageKey = "sessions";
 
         public static Session? selectedSession = default;
+
         public static List<Session> Sessions = new List<Session>();
 
         public string title;
@@ -26,10 +29,12 @@ namespace EastFive.Admin.UI
 
         public Guid serverId;
 
+        public static event EventHandler<Session> OnSessionSelected;
+
         public static async Task OnInitializedAsync(ILocalStorageService localStorage)
         {
             var sessionIdsJson = await localStorage.GetItemAsync<string>("session_ids");
-            Console.WriteLine($"Stored Session Ids = `{sessionIdsJson}`");
+            Console.WriteLine($"Available Stored Session Ids = `{sessionIdsJson}`");
             if (sessionIdsJson.IsNullOrWhiteSpace())
                 return;
             var sessionIds = Newtonsoft.Json.JsonConvert.DeserializeObject<Guid[]>(sessionIdsJson);
@@ -61,7 +66,7 @@ namespace EastFive.Admin.UI
             Session.Sessions = new List<Session>(sessions);
 
             var selectedSessionIdStr = await localStorage.GetItemAsync<string>("selected_session_id");
-            Console.WriteLine($"Stored Selected Session Id = `{selectedSessionIdStr}`");
+            Console.WriteLine($"SELECTING: Session Id = `{selectedSessionIdStr}`");
             if (selectedSessionIdStr.HasBlackSpace())
             {
                 if (Guid.TryParse(selectedSessionIdStr, out Guid selectedSessionId))
@@ -71,6 +76,8 @@ namespace EastFive.Admin.UI
                         .First(
                             (session, next) => session,
                             () => default(Session?));
+                    if(selectedSession.HasValue)
+                        OnSessionSelected?.Invoke(null, selectedSession.Value);
                 }
                 if (!selectedSession.HasValue)
                 {
@@ -136,6 +143,7 @@ namespace EastFive.Admin.UI
             Session.selectedSession = newSelectedSession;
             await localStorage.SetItemAsync(
                 "selected_session_id", newSelectedSession.id.ToString());
+            OnSessionSelected?.Invoke(null, newSelectedSession);
         }
     }
 }

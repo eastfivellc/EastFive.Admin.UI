@@ -7,6 +7,6 @@ namespace EastFive.Admin.UI
 {
     public class EntityType
     {
-        public IDataType [] Properties { get; set; }
+        public JTokenDataType[] Properties { get; set; }
     }
 }

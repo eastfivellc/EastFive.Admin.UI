@@ -1,19 +1,20 @@
-﻿@page "/Functions"
-@inject HttpClient Http
-@using SharpDom.Tags
+﻿@page "/Function/Invocations"
+
 @using System.IO
-@using EastFive.Api.Resources;
 @using System.Threading;
-@using EastFive;
-@using EastFive.Extensions;
-@using EastFive.Collections.Generic;
-@using EastFive.Admin.UI.Components;
-@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+@using Newtonsoft.Json.Linq
+
 @using Radzen.Blazor
 @using Radzen;
-@using Newtonsoft.Json.Linq
+
+@using EastFive;
+@using EastFive.Extensions;
+@using EastFive.Api.Resources;
+@using EastFive.Collections.Generic;
+@using EastFive.Admin.UI.Components;
+
 @inject Radzen.DialogService dialogService
-@*@inject NotificationService notificationService*@
 
 <RadzenTemplateForm Data="@query" Submit="@((InvocationMessageQuery args) => { Submit(args); })">
     <div class="row">
@@ -107,7 +108,7 @@
             new Dictionary<string, object>()
             {
                 { "Message", message }
-            },
+                            },
             MainLayout.dialogOptions);
     }
 
@@ -119,7 +120,7 @@
                 {
                     {  "start_time", query.startTime.ToString() },
                     {  "end_time", query.endTime.ToString() }
-                    },
+                                    },
                 Session.selectedSession.Value,
             (EastFive.Azure.Functions.InvocationMessage[] messages) =>
             {

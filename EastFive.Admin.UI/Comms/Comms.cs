@@ -137,7 +137,7 @@ namespace EastFive.Admin.UI
                                                 var props = jObj
                                                     .Properties()
                                                     .OrderBy(Ordering)
-                                                    .Select((prop, index) => (IDataType)new JTokenDataType(prop, index))
+                                                    .Select((prop, index) => new JTokenDataType(prop, index))
                                                     .ToArray();
                                                 return new EntityType()
                                                 {
@@ -153,7 +153,7 @@ namespace EastFive.Admin.UI
                                     var props = jObj
                                         .Properties()
                                         .OrderBy(Ordering)
-                                        .Select((prop, index) => (IDataType)new JTokenDataType(prop, index))
+                                        .Select((prop, index) => new JTokenDataType(prop, index))
                                         .ToArray();
                                     var entity = new EntityType()
                                     {

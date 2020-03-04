@@ -1,19 +1,21 @@
 ﻿@page "/resource"
 @page "/resource/{name}"
-@inject HttpClient Http
-@using SharpDom.Tags
+
 @using System.IO
-@using EastFive.Api.Resources;
 @using System.Threading;
+
+@using Newtonsoft.Json.Linq
+
+@using Radzen;
+@using Radzen.Blazor
+
 @using EastFive;
 @using EastFive.Extensions;
+@using EastFive.Api.Resources;
 @using EastFive.Collections.Generic;
 @using EastFive.Admin.UI.Components;
+
 @inject Blazored.LocalStorage.ILocalStorageService localStorage
-@using Radzen.Blazor
-@using Radzen;
-@using Newtonsoft.Json.Linq
-@*@inject NotificationService notificationService*@
 
 <h1>@Name</h1>
 
@@ -37,7 +39,7 @@ else
                     <select @bind="selectedMethod">
                         @foreach (var getMethod in getMethods)
                         {
-                        <option id="@getMethod.Name" value="@getMethod.Name">@getMethod.Name</option>
+                            <option id="@getMethod.Name" value="@getMethod.Name">@getMethod.Name</option>
                         }
                     </select>
                     @if (matchingMethod != null)
@@ -49,7 +51,7 @@ else
                                 <label for="@parameter.Name">@parameter.Name</label>
                                 <ParameterInput typeName="@parameter.Type" OnValueChanged="@((object newValue) => UpdateParam(paramName, newValue.ToString()))" />
                                 @*<input id="@parameter.Name" type="text"
-                                       @onchange="@((Microsoft.AspNetCore.Components.ChangeEventArgs args) => { UpdateParam(paramName, (string)args.Value);})" />*@
+                                    @onchange="@((Microsoft.AspNetCore.Components.ChangeEventArgs args) => { UpdateParam(paramName, (string)args.Value);})" />*@
                             </span>
                         }
                         <span>
@@ -71,22 +73,16 @@ else
                         <div class="rTableBody">
                             @foreach (var resource in resources)
                             {
-                                var row = resource.Properties.Aggregate(
-                                    new TagDiv() { Class = "rTableRow" },
-                                    (rowDiv, property) =>
+                                <div class="rTableRow">
+                                    @foreach (var prop in resource.Properties)
                                     {
-                                        return property.Render(rowDiv);
-                                    });
-                                var content = "";
-                                using (var renderer = new StringWriter())
-                                {
-                                    row.Render(renderer, true);
-                                    content = renderer.ToString();
-                                }
-                                @((MarkupString)content)
+                                        <JTokenRenderer index="@prop.index" token="@prop.token" />
+                                    }
+                                </div>
                             }
                         </div>
                     }
+
                 </div>
             </RadzenTabsItem>
             <RadzenTabsItem Text="Storage">
@@ -95,10 +91,10 @@ else
                 </span>
                 @if (loading)
                 {
-                <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
+                    <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
                 }
-                <RadzenGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true" 
-                            Data="@tableRows" 
+                <RadzenGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true"
+                            Data="@tableRows"
                             TItem="Newtonsoft.Json.Linq.JObject">
                     <Columns>
                         @foreach (var property in route.Properties)
@@ -239,7 +235,7 @@ else
 
     private Task fetcher = default;
 
-    //[Inject] 
+    //[Inject]
     //public NavigationManager MyNavigationManager {get; set;}
 
     private Task FetchResources()
@@ -278,16 +274,16 @@ else
             },
             why =>
             {
-                //var msg = new NotificationMessage()
-                //{
-                //    Severity = NotificationSeverity.Error, 
-                //    Summary = "Error", 
-                //    Detail = why, 
-                //    Duration = 4000
-                //};
-                //notificationService.Notify(msg);
-                //await InvokeAsync(() => { StateHasChanged(); });
-                this.failureMessage = why;
+            //var msg = new NotificationMessage()
+            //{
+            //    Severity = NotificationSeverity.Error,
+            //    Summary = "Error",
+            //    Detail = why,
+            //    Duration = 4000
+            //};
+            //notificationService.Notify(msg);
+            //await InvokeAsync(() => { StateHasChanged(); });
+            this.failureMessage = why;
                 loading = false;
                 Console.WriteLine("Fetched");
                 return false;

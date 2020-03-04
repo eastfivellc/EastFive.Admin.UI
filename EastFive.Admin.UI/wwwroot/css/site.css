@@ -101,6 +101,10 @@ app {
                 color: white;
             }
 
+.menu:not(.profile-menu) .navigation-menu {
+    z-index: 1000;
+}
+
 .content {
     padding-top: 1.1rem;
 }

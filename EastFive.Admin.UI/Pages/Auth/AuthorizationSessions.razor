@@ -1,0 +1,111 @@
+﻿@page "/Auth/Sessions"
+
+@using System.IO
+@using System.Threading;
+
+@using Radzen;
+@using Radzen.Blazor
+
+@using ChartJs.Blazor.Charts
+@using ChartJs.Blazor.ChartJS.PieChart
+@using ChartJs.Blazor.ChartJS.Common.Properties
+@using ChartJs.Blazor.Util
+
+@using EastFive;
+@using EastFive.Linq;
+@using EastFive.Api.Resources;
+@using EastFive.Azure.Auth;
+@using EastFive.Extensions;
+@using EastFive.Azure.Storage;
+@using EastFive.Collections.Generic;
+@using EastFive.Admin.UI.Components;
+
+@inject HttpClient Http
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+<div class="row">
+        <div class="col-md-4">Display Range</div>
+        <div class="col-md-3">
+            <span>Start Time:</span>
+            <RadzenDatePicker ShowTime="true" @bind-Value="@startTime"
+                              Style="margin-bottom: 20px;" />
+        </div>
+        <div class="col-md-3">
+            <span>End Time:</span>
+            <RadzenDatePicker ShowTime="true" @bind-Value="@endTime"
+                              Style="margin-bottom: 20px;" />
+        </div>
+        <div class="col-md-2">
+            <RadzenButton ButtonType="ButtonType.Submit"
+                          Icon="youtube_searched_for" 
+                          Text="Lookup"
+                          Click="SearchSessions" />
+        </div>
+</div>
+    <RadzenGrid AllowFiltering="true" AllowPaging="true" AllowSorting="true"
+                Data="@logins.NullToEmpty()"
+                TItem="EastFive.Azure.Auth.Login">
+        <Columns>
+            <RadzenGridColumn TItem="EastFive.Azure.Auth.Login" Property="actorId" Title="ActorID">
+                <Template Context="prop">
+                    <span>@prop.actorId.ToString()</span>
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="EastFive.Azure.Auth.Login" Property="name" Title="Name">
+                <Template Context="prop">
+                    <span>@prop.name</span>
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="EastFive.Azure.Auth.Login" Property="when" Title="When">
+                <Template Context="prop">
+                    <span>@prop.when.ToString()</span>
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="EastFive.Azure.Auth.Login" Property="method" Title="Method">
+                <Template Context="prop">
+                    <span>@prop.method</span>
+                </Template>
+            </RadzenGridColumn>
+            <RadzenGridColumn TItem="EastFive.Azure.Auth.Login" Property="authorization" Title="Authorization">
+                <Template Context="prop">
+                    <span>@prop.authorization.id.ToString()</span>
+                </Template>
+            </RadzenGridColumn>
+        </Columns>
+    </RadzenGrid>
+
+@code {
+
+    DateTime? startTime { get; set; }
+    DateTime? endTime { get; set; }
+
+    private EastFive.Azure.Auth.Login[] logins = new EastFive.Azure.Auth.Login[] { };
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+    
+    protected async void SearchSessions(MouseEventArgs args)
+    {
+        if(UI.Session.selectedSession.HasValue)
+            await UpdateTablesAsync(UI.Session.selectedSession.Value);
+    }
+
+    protected async Task UpdateTablesAsync(UI.Session session)
+    {
+        this.logins = await Comms.GetAsync("AuthLogin", "AllAsync",
+            new Dictionary<string, string>()
+            {
+                { "start_time", startTime.Value.ToString() },
+                { "end_time", endTime.Value.ToString() },
+            },
+            session,
+            (EastFive.Azure.Auth.Login[] tableInfo) =>
+            {
+                return tableInfo;
+            });
+        StateHasChanged();
+    }
+
+}

@@ -1,0 +1,71 @@
+﻿@page "/AzureStorageProperty/{Tablename}/{PropertyName}"
+
+@using Radzen.Blazor
+@using Radzen;
+@using EastFive.Linq;
+@using EastFive.Extensions;
+@inject Radzen.DialogService dialogService
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+@if (!String.IsNullOrWhiteSpace(failureMessage))
+{
+    <p><code>@failureMessage</code></p>
+}
+<div>
+    <RadzenCard Style="margin-bottom: 20px;">
+        <div class="row">
+            <div class="col-md-6">
+                <div>Server Name:</div>
+                <div style="margin-top:20px">Location:</div>
+            </div>
+            <div class="col-md-6">
+                <div>
+                    <RadzenTextBox Name="Title"
+                                   Placeholder="Text..."
+                                   @bind-Value="Tablename"
+                                   Style="margin-bottom: 20px" />
+                    <RadzenRequiredValidator Component="Title" Text="Title is required" Popup="@true" Style="position: absolute" />
+                </div>
+                <div>
+                    <RadzenTextBox Name="Location"
+                                   Placeholder="http://www.example.com..."
+                                   Value="PropertyName"
+                                   Style="margin-bottom: 20px" />
+                    <RadzenRequiredValidator Component="Location" Text="Location is required" Popup="@true" Style="position: absolute" />
+                </div>
+            </div>
+        </div>
+    </RadzenCard>
+    <div class="row justify-content-center">
+        <div class="col-md-12 d-flex align-items-end justify-content-center" style="margin-top: 16px;">
+            <RadzenButton Click="@(() => dialogService.Close())"
+                          ButtonStyle="ButtonStyle.Light" Icon="cancel" Text="Cancel"
+                          style="display: inline-block; margin-left: 10px;" />
+        </div>
+    </div>
+</div>
+
+@code
+{
+    [Parameter] public string Tablename { get; set; }
+
+    [Parameter] public string PropertyName { get; set; }
+
+    EastFive.Azure.Storage.StorageProperty storageProperty;
+
+    string failureMessage;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        //this.storageProperty = Comms..Servers
+        //    .Where(server => server.id == ServerId)
+        //    .First(
+        //        (server, next) => server,
+        //        () => new Server
+        //        {
+        //            id = ServerId,
+        //        });
+    }
+}

@@ -42,7 +42,7 @@ namespace EastFive.Admin.UI
         public static async Task OnInitializedAsync(ILocalStorageService localStorage)
         {
             var serverIdsJson = await localStorage.GetItemAsync<string>("server_ids");
-            Console.WriteLine($"Stored Server Ids = `{serverIdsJson}`");
+            Console.WriteLine($"Available Stored Server Ids = `{serverIdsJson}`");
             if (serverIdsJson.IsNullOrWhiteSpace())
                 return;
             var serverIds = Newtonsoft.Json.JsonConvert.DeserializeObject<Guid[]>(serverIdsJson);
@@ -53,7 +53,7 @@ namespace EastFive.Admin.UI
                     async serverId =>
                     {
                         var serverJson = await localStorage.GetItemAsync<string>(serverId.ToString("N"));
-                        Console.WriteLine($"Stored Server [{serverId}] loaded as `{serverJson}`");
+                        Console.WriteLine($"LOADED: Stored Server:{serverId}");
                         if (serverJson.IsNullOrWhiteSpace())
                         {
                             await Server.DeleteServer(serverId, localStorage);
@@ -68,7 +68,7 @@ namespace EastFive.Admin.UI
             Servers = new List<Server>(servers);
 
             var selectedServerIdStr = await localStorage.GetItemAsync<string>("selected_server_id");
-            Console.WriteLine($"Stored Selected Server Id = `{selectedServerIdStr}`");
+            Console.WriteLine($"SELECTING:Server Id = `{selectedServerIdStr}`");
             if (selectedServerIdStr.HasBlackSpace())
             {
                 if(Guid.TryParse(selectedServerIdStr, out Guid selectedServerId))

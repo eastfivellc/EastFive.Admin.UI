@@ -1,0 +1,106 @@
+﻿@using System.IO
+@using System.Threading;
+
+@using Newtonsoft.Json.Linq
+
+@using Radzen;
+@using Radzen.Blazor
+
+@using EastFive;
+@using EastFive.Linq;
+@using EastFive.Extensions;
+@using EastFive.Api.Resources;
+@using EastFive.Collections.Generic;
+@using EastFive.Admin.UI.Components;
+@using EastFive.Azure.Storage;
+
+<div class="row">
+    <div class="col-md-10">
+        <RadzenDropDown AllowClear="true"
+                        TValue="StorageTable"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        AllowFiltering="true"
+                        Placeholder="@(tables.AnyNullSafe()? "Select..." : "Loading...")"
+                        Data="@tables"
+                        Change="SelectionChangedAsync"
+                        Style="margin-bottom: 20px; width:100%;">
+            <Template Context="prop">
+                @((prop as StorageTable).name)
+            </Template>
+        </RadzenDropDown>
+
+    </div>
+    <div class="col-md-2">
+        <RadzenButton ButtonType="ButtonType.Submit"
+                      Icon="youtube_searched_for"
+                      Disabled="@table.IsDefaultOrNull()"
+                      Text="@CallToAction"
+                      Click="ActionAsync" />
+    </div>
+</div>
+
+@code
+{
+#nullable enable
+
+    [Parameter]
+    public string? CallToAction { get; set; }
+
+    private Azure.Storage.StorageTable[] tables = new StorageTable[] { };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Session.OnSessionSelected += SessionChanged;
+
+        if (Session.selectedSession.HasValue)
+            await UpdateTablesAsync(Session.selectedSession.Value);
+
+    }
+
+    #region Callbacks
+
+    #region SelectionChanged
+
+    [Parameter]
+    public EventCallback<Azure.Storage.StorageTable?> OnSelectionChanged { get; set; }
+    
+    Azure.Storage.StorageTable table = default;
+    private async void SelectionChangedAsync(object tableObject)
+    {
+        Console.WriteLine($"Table selection Changed:{tableObject.GetType().FullName}");
+        table = (Azure.Storage.StorageTable)tableObject;
+        await OnSelectionChanged.InvokeAsync(table);
+    }
+
+    #endregion
+
+    #region Action
+
+    [Parameter]
+    public EventCallback<Azure.Storage.StorageTable> OnAction { get; set; }
+
+    private async void ActionAsync()
+    {
+        await OnAction.InvokeAsync(table);
+    }
+
+    #endregion
+
+    #endregion
+
+    protected async Task UpdateTablesAsync(Session session)
+    {
+        this.tables = await Comms.GetAsync("StorageTable", "All",
+            new Dictionary<string, string>() { },
+            session,
+            (StorageTable[] tables) => tables);
+        StateHasChanged();
+    }
+
+    protected async void SessionChanged(object sender, Session session)
+    {
+        await UpdateTablesAsync(session);
+    }
+
+}

@@ -35,4 +35,19 @@ namespace EastFive.Azure.Storage
 
         #endregion
     }
+
+    public class TableInformation
+    {
+        public long total;
+        public long mismatchedRowKeys;
+        public long mismatchedPartitionKeys;
+        public IDictionary<string, IDictionary<object, long>> properties;
+        public IDictionary<string, PartitionSummary> partitions;
+    }
+
+    public class PartitionSummary
+    {
+        public long total;
+        public IDictionary<string, IDictionary<object, long>> properties;
+    }
 }

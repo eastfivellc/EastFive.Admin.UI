@@ -10,7 +10,9 @@
 @inject Blazored.LocalStorage.ILocalStorageService localStorage
 
 <div class="top-row pl-4 navbar navbar-dark">
-    <div class="col-md-8"></div>
+    <div class="col-md-8">
+        <RadzenTextBox Value="@session.title" Placeholder="Session Title" ValueChanged="UpdateTitle" />
+    </div>
     <RadzenSplitButton class="navbar-brand"
                        Click="@((args) => SelectServer(args))"
                        Text="@(Server.HasValue? Server.Value.title : "Select Server")"
@@ -25,8 +27,6 @@
     </RadzenSplitButton>
 </div>
 
-<h3>@session.title</h3>
-
 <RadzenTabs>
     <Tabs>
         <RadzenTabsItem Text="Login Provider">
@@ -37,7 +37,7 @@
                 <RadzenFieldset Text="Token">
                     <div class="row">
                         <div class="col-md-12">
-                            <RadzenTextArea @bind-Value="@session.token"
+                            <RadzenTextArea @bind-Value="token"
                                             Style="margin-bottom: 20px; width: 100%;" />
                         </div>
                     </div>
@@ -126,8 +126,8 @@
                                             TextProperty="name"
                                             ValueProperty="type"
                                             Style="margin-bottom: 20px; width:100%;">
-                                <Template>
-                                    @(((Azure.Auth.Claim)context).name) [@(((Azure.Auth.Claim)context).type)]
+                                <Template Context="claim">
+                                    @(((Azure.Auth.Claim)claim).name) [@(((Azure.Auth.Claim)claim).type)]
                                 </Template>
                             </RadzenDropDown>
                         </div>
@@ -190,13 +190,6 @@
     {
         await base.OnInitializedAsync();
         Console.WriteLine("Initializing Session Creation....");
-        //await Components.Login.ProcessRedirectAsync(navigationManager, localStorage, dialogService);
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        await base.OnParametersSetAsync();
-        Console.WriteLine("Updating session creation parameters....");
 
         if (SessionId.HasValue)
         {
@@ -209,6 +202,7 @@
                     .First(
                         (session, next) => session,
                         () => new Session { });
+                token = session.token;
             }
             Console.WriteLine($"Session set to {session.id}");
         }
@@ -307,6 +301,11 @@
 
     #endregion
 
+    void UpdateTitle(string newTitle)
+    {
+        session.title = newTitle;
+    }
+
     #region Claims
 
     Azure.Auth.Claim[] Claims;
@@ -362,13 +361,16 @@
     async void Submit(Session newSession)
     {
         this.session = newSession;
+        this.session.token = this.token;
         if (this.session.id.IsDefaultOrEmpty())
         {
             this.session.id = Guid.NewGuid();
+            Console.WriteLine("Creating new session");
             await Session.CreateSession(newSession, localStorage);
             dialogService.Close();
             return;
         }
+        Console.WriteLine($"Updating existing session with title='{this.session.title}'; token=`{this.session.token}`");
         await Session.UpdateSession(this.session, localStorage);
         dialogService.Close();
         return;

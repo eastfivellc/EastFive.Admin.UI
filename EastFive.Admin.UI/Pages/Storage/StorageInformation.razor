@@ -1,0 +1,149 @@
+﻿@page "/Storage/Information"
+
+@using System.IO
+@using System.Threading;
+
+@using Newtonsoft.Json.Linq
+
+@using Radzen;
+@using Radzen.Blazor
+
+@using ChartJs.Blazor.Charts
+@using ChartJs.Blazor.ChartJS.PieChart
+@using ChartJs.Blazor.ChartJS.Common.Properties
+@using ChartJs.Blazor.Util
+
+@using EastFive;
+@using EastFive.Linq;
+@using EastFive.Extensions;
+@using EastFive.Api.Resources;
+@using EastFive.Collections.Generic;
+@using EastFive.Admin.UI.Components;
+@using EastFive.Azure.Storage;
+
+<TableSelection OnAction="@FetchTableInformationAsync" CallToAction="Load" />
+
+@if (partition_config != null)
+{
+<div class="row">
+    <ChartJsPieChart @ref="partitionChartJs" Config="@partition_config" Width="600" Height="300" />
+</div>
+}
+@foreach (var propertyChart in propertyCharts)
+{
+    var config = propertyChart.Key;
+    var chart = propertyChart.Value;
+<RadzenPanel AllowCollapse="true" Collapsed="true">
+    <ChartJsPieChart @ref="chart" Config="@config" Width="600" Height="300" />
+</RadzenPanel>
+}
+
+@code {
+
+    private TableInformation tableInfo;
+
+    private Dictionary<string, string> paramValues = new Dictionary<string, string>();
+
+    private PieConfig partition_config;
+    private ChartJsPieChart partitionChartJs;
+
+    public KeyValuePair<PieConfig, ChartJsPieChart>[] propertyCharts =
+        new KeyValuePair<PieConfig, ChartJsPieChart>[] { };
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        partition_config = new PieConfig()
+        {
+            Options = new PieOptions
+            {
+                Title = new OptionsTitle
+                {
+                    Display = true,
+                    Text = "Partitions",
+                },
+                Responsive = true,
+                Animation = new ArcAnimation
+                {
+                    AnimateRotate = true,
+                    AnimateScale = true
+                }
+            }
+        };
+    }
+
+    private async void FetchTableInformationAsync(Azure.Storage.StorageTable table)
+    {
+        this.tableInfo = await Comms.GetAsync("StorageTable", "Information",
+            new Dictionary<string, string>()
+            {
+                { "name", table.name }
+            },
+            Session.selectedSession.Value,
+            (TableInformation tableInfo) =>
+            {
+                return tableInfo;
+            });
+
+        partition_config.Data.Labels.Clear();
+        partition_config.Data.Labels.AddRange(tableInfo.partitions.Keys);
+
+        var pieSet = new PieDataset
+        {
+            BackgroundColor = tableInfo.partitions.Keys.Select(discard => ColorUtil.RandomColorString()).ToArray(),
+            BorderWidth = 0,
+            HoverBackgroundColor = ColorUtil.RandomColorString(),
+            HoverBorderColor = ColorUtil.RandomColorString(),
+            HoverBorderWidth = 1,
+            BorderColor = "#fffffd",
+        };
+        pieSet.Data.AddRange(tableInfo.partitions.Select(kvp => (double)kvp.Value.total).ToArray());
+        partition_config.Data.Datasets.Clear();
+        partition_config.Data.Datasets.Add(pieSet);
+
+        this.propertyCharts = tableInfo.properties
+            .Select(
+                propertyKvp =>
+                {
+                    var config = new PieConfig
+                    {
+                        Options = new PieOptions
+                        {
+                            Title = new OptionsTitle
+                            {
+                                Display = true,
+                                Text = propertyKvp.Key,
+                            },
+                            Responsive = true,
+                            Animation = new ArcAnimation
+                            {
+                                AnimateRotate = true,
+                                AnimateScale = true
+                            }
+                        }
+                    };
+
+                    var property = propertyKvp.Value;
+                    config.Data.Labels.AddRange(property.SelectKeys(k => k.ToString()));
+
+                    var pieSet = new PieDataset
+                    {
+                        BackgroundColor = property.Keys.Select(discard => ColorUtil.RandomColorString()).ToArray(),
+                        BorderWidth = 0,
+                        HoverBackgroundColor = ColorUtil.RandomColorString(),
+                        HoverBorderColor = ColorUtil.RandomColorString(),
+                        HoverBorderWidth = 1,
+                        BorderColor = "#ffffff",
+                    };
+
+                    pieSet.Data.AddRange(property.SelectValues(v => (double)v));
+                    config.Data.Datasets.Add(pieSet);
+
+                    return config.PairWithValue(default(ChartJsPieChart));
+                })
+            .ToArray();
+
+        StateHasChanged();
+    }
+
+}
